@@ -7,7 +7,7 @@ static void test_write_then_commit_is_visible_to_a_later_transaction(void) {
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *writer = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, writer, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, writer, sizeof(int));
     assert(handle != NULL);
     int value = 42;
     assert(stm_write(stm, writer, handle, &value, sizeof(value)));
@@ -26,7 +26,7 @@ static void test_read_your_own_write_before_commit(void) {
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *transaction = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, transaction, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, transaction, sizeof(int));
     int value = 7;
     assert(stm_write(stm, transaction, handle, &value, sizeof(value)));
 
@@ -42,7 +42,7 @@ static void test_reading_unwritten_memory_fails(void) {
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *transaction = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, transaction, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, transaction, sizeof(int));
     int read_value = 0;
     assert(!stm_read(stm, transaction, handle, &read_value, sizeof(read_value)));
 
@@ -54,7 +54,7 @@ static void test_rollback_discards_uncommitted_write(void) {
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *setup = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, setup, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, setup, sizeof(int));
     int original = 1;
     assert(stm_write(stm, setup, handle, &original, sizeof(original)));
     assert(stm_commit_transaction(stm, setup));
@@ -77,7 +77,7 @@ static void test_release_then_commit_hides_memory_from_later_transactions(void) 
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *setup = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, setup, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, setup, sizeof(int));
     int value = 5;
     assert(stm_write(stm, setup, handle, &value, sizeof(value)));
     assert(stm_commit_transaction(stm, setup));
@@ -99,7 +99,7 @@ static void test_concurrent_writers_first_committer_wins(void) {
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *setup = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, setup, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, setup, sizeof(int));
     int initial = 0;
     assert(stm_write(stm, setup, handle, &initial, sizeof(initial)));
     assert(stm_commit_transaction(stm, setup));
@@ -130,7 +130,7 @@ static void test_stale_read_aborts_commit_even_without_a_write(void) {
     stm_t *stm = stm_constructor();
 
     stm_transaction_t *setup = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, setup, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, setup, sizeof(int));
     int initial = 1;
     assert(stm_write(stm, setup, handle, &initial, sizeof(initial)));
     assert(stm_commit_transaction(stm, setup));
@@ -156,7 +156,7 @@ static void test_operations_require_an_open_transaction(void) {
     assert(stm_allocate_memory(stm, NULL, sizeof(int)) == NULL);
 
     stm_transaction_t *transaction = stm_begin_transaction(stm);
-    void *handle = stm_allocate_memory(stm, transaction, sizeof(int));
+    stm_handle_t handle = stm_allocate_memory(stm, transaction, sizeof(int));
     int value = 1;
     assert(stm_write(stm, transaction, handle, &value, sizeof(value)));
     assert(stm_commit_transaction(stm, transaction));

@@ -34,13 +34,17 @@ and is consumed by whichever of commit/rollback is called on it:
 - `stm_allocate_memory` / `stm_release_memory` — manage memory through the STM
 - `stm_read` / `stm_write` — read/write the bytes at a handle
 
+`stm_allocate_memory` hands back an `stm_handle_t` — an opaque reference, not
+a usable pointer. Don't dereference it; always go through `stm_read`/
+`stm_write`.
+
 ```c
 #include "stm/stm.h"
 
 stm_t *stm = stm_constructor();
 
 stm_transaction_t *transaction = stm_begin_transaction(stm);
-node_t *handle = stm_allocate_memory(stm, transaction, sizeof(node_t));
+stm_handle_t handle = stm_allocate_memory(stm, transaction, sizeof(node_t));
 node_t node = {0};
 /* ... build up the data structure ... */
 stm_write(stm, transaction, handle, &node, sizeof(node));

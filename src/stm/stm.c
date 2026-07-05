@@ -10,8 +10,8 @@ typedef struct stm_version {
     struct stm_version *next;
 } stm_version_t;
 
-/* A slot's identity *is* its address: the handle returned by
- * stm_allocate_memory is a pointer to its stm_slot_t, cast to void *.
+/* A slot's identity *is* its address: an stm_handle_t returned by
+ * stm_allocate_memory is simply a pointer to its stm_slot_t.
  * length_in_bytes is fixed at allocation time; every version committed to
  * a slot holds that many bytes. */
 typedef struct stm_slot {
@@ -253,7 +253,8 @@ void stm_rollback_transaction(stm_t *stm, stm_transaction_t *transaction) {
     stm_transaction_destroy(transaction);
 }
 
-void *stm_allocate_memory(stm_t *stm, stm_transaction_t *transaction, size_t length_in_bytes) {
+stm_handle_t stm_allocate_memory(stm_t *stm, stm_transaction_t *transaction,
+                                  size_t length_in_bytes) {
     if (transaction == NULL || transaction->owner != stm) {
         return NULL;
     }
@@ -274,7 +275,7 @@ void *stm_allocate_memory(stm_t *stm, stm_transaction_t *transaction, size_t len
     return slot;
 }
 
-bool stm_release_memory(stm_t *stm, stm_transaction_t *transaction, void *handle) {
+bool stm_release_memory(stm_t *stm, stm_transaction_t *transaction, stm_handle_t handle) {
     if (transaction == NULL || transaction->owner != stm || handle == NULL) {
         return false;
     }
@@ -305,7 +306,7 @@ bool stm_release_memory(stm_t *stm, stm_transaction_t *transaction, void *handle
     return true;
 }
 
-bool stm_read(stm_t *stm, stm_transaction_t *transaction, void *handle, void *out,
+bool stm_read(stm_t *stm, stm_transaction_t *transaction, stm_handle_t handle, void *out,
               size_t length_in_bytes) {
     if (transaction == NULL || transaction->owner != stm || handle == NULL || out == NULL) {
         return false;
@@ -332,7 +333,7 @@ bool stm_read(stm_t *stm, stm_transaction_t *transaction, void *handle, void *ou
     return stm_slot_ref_push(&transaction->reads, slot);
 }
 
-bool stm_write(stm_t *stm, stm_transaction_t *transaction, void *handle, const void *data,
+bool stm_write(stm_t *stm, stm_transaction_t *transaction, stm_handle_t handle, const void *data,
                size_t length_in_bytes) {
     if (transaction == NULL || transaction->owner != stm || handle == NULL ||
         (data == NULL && length_in_bytes > 0)) {
