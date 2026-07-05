@@ -21,6 +21,18 @@ target_compile_options(hello_world PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/W4>
 )
 
+add_library(y_stm
+    src/y/stm/implementation.c
+    src/y/stm/alloc/implementation.c
+    src/y/stm/mem/implementation.c
+)
+target_include_directories(y_stm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_compile_options(y_stm PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests)
