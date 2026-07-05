@@ -44,3 +44,17 @@ this repo.
   `<namespace>_count(...)`.
 - **Sizes/lengths in general**: always name the unit explicitly, e.g.
   `length_in_bytes`. Never use a bare `size` or `length`.
+
+## Concurrency model
+
+- All code in this repository runs on a single OS thread. There is no
+  preemptive multitasking: control only ever transfers at explicit call/
+  return boundaries, never in the middle of a function.
+- Do not add mutexes, atomics, memory barriers, `volatile`, or
+  compare-and-swap loops to protect shared state — plain sequential reads
+  and writes are sufficient, since nothing can run concurrently with them.
+- This does not mean there is only ever one logical task in flight: code
+  (e.g. the STM library) may still model multiple independent, overlapping
+  units of work (transactions, coroutines, ...) that interleave with each
+  other. Handle that with ordinary sequential bookkeeping (versions,
+  generation counters, explicit handles), not with locking primitives.
