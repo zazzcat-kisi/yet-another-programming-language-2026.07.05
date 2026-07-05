@@ -22,3 +22,16 @@ target_compile_options(test_y_string PRIVATE
 )
 
 add_test(NAME y_string_tests COMMAND test_y_string)
+
+add_executable(test_y_fatal test_y_fatal.c)
+target_link_libraries(test_y_fatal PRIVATE y_fatal)
+
+target_compile_options(test_y_fatal PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
+add_test(NAME y_fatal_terminates_the_process COMMAND test_y_fatal)
+set_tests_properties(y_fatal_terminates_the_process PROPERTIES
+    WILL_FAIL TRUE
+)

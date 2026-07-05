@@ -62,6 +62,15 @@ if (something_went_wrong) {
 y_stm_destructor(stm);
 ```
 
+### `y_fatal` — unrecoverable errors
+
+`src/y/fatal/include.h` / `src/y/fatal/implementation.c` provide
+`y_fatal_terminate(const char *message)`, this project's way to give up on a
+condition it cannot recover from: it prints the message and terminates the
+process immediately (no cleanup, no atexit handlers). There's no state
+object and no return value — it's a purely functional utility, and it never
+returns.
+
 ### `y_stm_alloc` / `y_stm_mem` — standard library replacements
 
 `src/y/stm/alloc/` and `src/y/stm/mem/` are thin, namespaced wrappers around
@@ -69,7 +78,10 @@ the C allocator (`y_stm_alloc_malloc`/`y_stm_alloc_calloc`/`y_stm_alloc_free`)
 and `<string.h>` byte functions (`y_stm_mem_memcpy`/`y_stm_mem_memcmp`). The
 rest of the codebase goes through these instead of calling
 `malloc`/`free`/`memcpy`/`memcmp` directly, so the underlying implementation
-can be swapped in one place later.
+can be swapped in one place later. `y_stm_alloc_malloc`/`y_stm_alloc_calloc`
+never return NULL for a nonzero-size request — out-of-memory calls
+`y_fatal_terminate` instead of propagating a failure their callers would
+have no way to recover from anyway.
 
 ### `y_string` — a transactional string, serving the role of `str*`
 

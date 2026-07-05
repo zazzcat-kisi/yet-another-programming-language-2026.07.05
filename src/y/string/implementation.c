@@ -49,9 +49,6 @@ y_string_t *y_string_constructor(y_stm_t *stm, y_stm_transaction_t *transaction,
     }
 
     y_string_t *self = y_stm_alloc_malloc(sizeof(y_string_t));
-    if (self == NULL) {
-        return NULL;
-    }
     self->stm = stm;
     self->descriptor = descriptor;
     return self;
@@ -155,9 +152,6 @@ bool y_string_append(y_string_t *self, y_stm_transaction_t *transaction, const c
 
     size_t combined_length_in_bytes = old_value.length_in_bytes + length_in_bytes;
     unsigned char *combined = y_stm_alloc_malloc(combined_length_in_bytes);
-    if (combined == NULL) {
-        return false;
-    }
 
     if (old_value.length_in_bytes > 0 &&
         !y_stm_read(self->stm, transaction, old_value.content, combined, old_value.length_in_bytes)) {
@@ -191,9 +185,6 @@ bool y_string_compare(const y_string_t *self, const y_string_t *other,
     unsigned char *self_bytes = NULL;
     if (self_value.length_in_bytes > 0) {
         self_bytes = y_stm_alloc_malloc(self_value.length_in_bytes);
-        if (self_bytes == NULL) {
-            return false;
-        }
         if (!y_stm_read(self->stm, transaction, self_value.content, self_bytes,
                         self_value.length_in_bytes)) {
             y_stm_alloc_free(self_bytes);
@@ -204,10 +195,6 @@ bool y_string_compare(const y_string_t *self, const y_string_t *other,
     unsigned char *other_bytes = NULL;
     if (other_value.length_in_bytes > 0) {
         other_bytes = y_stm_alloc_malloc(other_value.length_in_bytes);
-        if (other_bytes == NULL) {
-            y_stm_alloc_free(self_bytes);
-            return false;
-        }
         if (!y_stm_read(other->stm, transaction, other_value.content, other_bytes,
                         other_value.length_in_bytes)) {
             y_stm_alloc_free(self_bytes);
@@ -257,9 +244,6 @@ char *y_string_as_c_string(const y_string_t *self, y_stm_transaction_t *transact
     }
 
     char *result = y_stm_alloc_malloc(value.length_in_bytes + 1);
-    if (result == NULL) {
-        return NULL;
-    }
 
     if (value.length_in_bytes > 0 &&
         !y_stm_read(self->stm, transaction, value.content, result, value.length_in_bytes)) {

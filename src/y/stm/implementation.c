@@ -48,15 +48,11 @@ struct y_stm {
     unsigned long long next_version; /* version to be assigned to the next commit */
 };
 
-static bool y_stm_slot_ref_push(y_stm_slot_ref_t **list, y_stm_slot_t *slot) {
+static void y_stm_slot_ref_push(y_stm_slot_ref_t **list, y_stm_slot_t *slot) {
     y_stm_slot_ref_t *ref = y_stm_alloc_malloc(sizeof(y_stm_slot_ref_t));
-    if (ref == NULL) {
-        return false;
-    }
     ref->slot = slot;
     ref->next = *list;
     *list = ref;
-    return true;
 }
 
 static void y_stm_slot_ref_list_free(y_stm_slot_ref_t *list) {
@@ -139,9 +135,6 @@ static void y_stm_transaction_destroy(y_stm_transaction_t *transaction) {
 
 y_stm_t *y_stm_constructor(void) {
     y_stm_t *stm = y_stm_alloc_calloc(1, sizeof(y_stm_t));
-    if (stm == NULL) {
-        return NULL;
-    }
     stm->next_version = 1;
     return stm;
 }
@@ -161,9 +154,6 @@ void y_stm_destructor(y_stm_t *stm) {
 
 y_stm_transaction_t *y_stm_begin_transaction(y_stm_t *stm) {
     y_stm_transaction_t *transaction = y_stm_alloc_calloc(1, sizeof(y_stm_transaction_t));
-    if (transaction == NULL) {
-        return NULL;
-    }
     transaction->owner = stm;
     transaction->snapshot_version = stm->next_version - 1;
     return transaction;
@@ -210,9 +200,6 @@ bool y_stm_commit_transaction(y_stm_t *stm, y_stm_transaction_t *transaction) {
                 continue; /* never published; the cleanup pass below discards it */
             }
             y_stm_version_t *version = y_stm_alloc_malloc(sizeof(y_stm_version_t));
-            if (version == NULL) {
-                continue; /* the release is lost, but nothing is left inconsistent */
-            }
             version->version = commit_version;
             version->tombstone = true;
             version->data = NULL;
@@ -220,9 +207,6 @@ bool y_stm_commit_transaction(y_stm_t *stm, y_stm_transaction_t *transaction) {
             record->slot->versions = version;
         } else {
             y_stm_version_t *version = y_stm_alloc_malloc(sizeof(y_stm_version_t));
-            if (version == NULL) {
-                continue; /* the write is lost, but nothing is left inconsistent */
-            }
             version->version = commit_version;
             version->tombstone = false;
             version->data = record->data; /* ownership transfers to the version */
@@ -268,18 +252,11 @@ y_stm_handle_t y_stm_allocate_memory(y_stm_t *stm, y_stm_transaction_t *transact
     }
 
     y_stm_slot_t *slot = y_stm_alloc_calloc(1, sizeof(y_stm_slot_t));
-    if (slot == NULL) {
-        return NULL;
-    }
     slot->length_in_bytes = length_in_bytes;
     slot->next = stm->slots;
     stm->slots = slot;
 
-    if (!y_stm_slot_ref_push(&transaction->owned, slot)) {
-        stm->slots = slot->next;
-        y_stm_alloc_free(slot);
-        return NULL;
-    }
+    y_stm_slot_ref_push(&transaction->owned, slot);
     return slot;
 }
 
@@ -304,9 +281,6 @@ bool y_stm_release_memory(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_
     }
 
     y_stm_write_record_t *record = y_stm_alloc_malloc(sizeof(y_stm_write_record_t));
-    if (record == NULL) {
-        return false;
-    }
     record->slot = slot;
     record->data = NULL;
     record->is_release = true;
@@ -340,7 +314,8 @@ bool y_stm_read(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t h
         return false;
     }
     y_stm_mem_memcpy(out, visible->data, length_in_bytes);
-    return y_stm_slot_ref_push(&transaction->reads, slot);
+    y_stm_slot_ref_push(&transaction->reads, slot);
+    return true;
 }
 
 bool y_stm_write(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle,
@@ -371,17 +346,10 @@ bool y_stm_write(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t 
     unsigned char *copy = NULL;
     if (length_in_bytes > 0) {
         copy = y_stm_alloc_malloc(length_in_bytes);
-        if (copy == NULL) {
-            return false;
-        }
         y_stm_mem_memcpy(copy, data, length_in_bytes);
     }
 
     y_stm_write_record_t *record = y_stm_alloc_malloc(sizeof(y_stm_write_record_t));
-    if (record == NULL) {
-        y_stm_alloc_free(copy);
-        return false;
-    }
     record->slot = slot;
     record->data = copy;
     record->is_release = false;

@@ -91,6 +91,29 @@ this repo.
   (returns `bool`, a null pointer, a negative/sentinel value, an `errno`,
   etc.) must have its result checked at the call site; propagate the
   failure to the caller or handle it there, never silently discard it.
+- The one deliberate exception is a condition routed through
+  `y_fatal_terminate` (see "Fatal errors" below): those are not
+  recoverable, so there is no error code to check or propagate, and
+  code calling something that can only fail that way must not add a
+  dead NULL/failure check for it.
+
+## Fatal errors
+
+- `y_fatal_terminate` (namespace `y_fatal`, in `src/y/fatal/`) is this
+  project's way to give up on an unrecoverable condition: it prints a
+  diagnostic and terminates the process immediately. It takes no state
+  object (it's a purely functional utility, like `y_stm_alloc`/`y_stm_mem`)
+  and never returns.
+- Out-of-memory is the current trigger: `y_stm_alloc_malloc`/
+  `y_stm_alloc_calloc` call `y_fatal_terminate` instead of returning NULL
+  for a nonzero-size allocation that fails, since this project has no
+  strategy for continuing after an allocation failure. Because of this,
+  their callers must not (and don't need to) check the result for NULL —
+  see "Error handling" above.
+- Agents must not call `abort`/`exit`/`_exit` directly elsewhere in this
+  repo for an unrecoverable condition — route it through
+  `y_fatal_terminate` instead, the same way allocation goes through
+  `y_stm_alloc`.
 
 ## Standard library replacements
 
