@@ -19,16 +19,16 @@
  */
 typedef struct stm stm_t;
 
-stm_t *stm_create(void);
-void stm_destroy(stm_t *stm);
+stm_t *stm_constructor(void);
+void stm_destructor(stm_t *stm);
 
-void *stm_allocate_memory(stm_t *stm, size_t size);
+void *stm_allocate_memory(stm_t *stm, size_t length_in_bytes);
 bool stm_release_memory(stm_t *stm, void *ptr);
 
 bool stm_begin_transaction(stm_t *stm);
 bool stm_commit_transaction(stm_t *stm);
 void stm_rollback_transaction(stm_t *stm);
 
-bool stm_in_transaction(const stm_t *stm);
+bool stm_is_in_transaction(const stm_t *stm);
 
 #endif

@@ -1,10 +1,10 @@
-#include "stm.h"
+#include "stm/stm.h"
 
 #include <stdlib.h>
 
 typedef struct stm_block {
     void *ptr;
-    size_t size;
+    size_t length_in_bytes;
     bool pending_free;
     struct stm_block *next;
 } stm_block_t;
@@ -70,11 +70,11 @@ static void stm_discard_undo_log(stm_t *stm) {
     stm->undo_log = NULL;
 }
 
-stm_t *stm_create(void) {
+stm_t *stm_constructor(void) {
     return calloc(1, sizeof(stm_t));
 }
 
-void stm_destroy(stm_t *stm) {
+void stm_destructor(stm_t *stm) {
     if (stm == NULL) {
         return;
     }
@@ -91,8 +91,8 @@ void stm_destroy(stm_t *stm) {
     free(stm);
 }
 
-void *stm_allocate_memory(stm_t *stm, size_t size) {
-    void *ptr = malloc(size);
+void *stm_allocate_memory(stm_t *stm, size_t length_in_bytes) {
+    void *ptr = malloc(length_in_bytes);
     if (ptr == NULL) {
         return NULL;
     }
@@ -103,7 +103,7 @@ void *stm_allocate_memory(stm_t *stm, size_t size) {
         return NULL;
     }
     block->ptr = ptr;
-    block->size = size;
+    block->length_in_bytes = length_in_bytes;
     block->pending_free = false;
     block->next = stm->blocks;
     stm->blocks = block;
@@ -200,6 +200,6 @@ void stm_rollback_transaction(stm_t *stm) {
     stm->depth = 0;
 }
 
-bool stm_in_transaction(const stm_t *stm) {
+bool stm_is_in_transaction(const stm_t *stm) {
     return stm->depth > 0;
 }

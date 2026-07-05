@@ -21,7 +21,7 @@ target_compile_options(hello_world PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/W4>
 )
 
-add_library(stm src/stm.c)
+add_library(stm src/stm/stm.c)
 target_include_directories(stm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_options(stm PRIVATE
