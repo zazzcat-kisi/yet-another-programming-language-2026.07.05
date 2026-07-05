@@ -97,9 +97,9 @@ this repo.
 - `y_stm_alloc` provides this project's replacements for the C allocator
   — `y_stm_alloc_malloc`, `y_stm_alloc_calloc`, `y_stm_alloc_free` — and
   `y_stm_mem` provides replacements for `<string.h>` byte-manipulation
-  functions as they're needed (currently `y_stm_mem_memcpy`). Add to
-  either only the functions actually used elsewhere in the codebase, not
-  the full libc surface speculatively.
+  functions as they're needed (currently `y_stm_mem_memcpy`,
+  `y_stm_mem_memcmp`). Add to either only the functions actually used
+  elsewhere in the codebase, not the full libc surface speculatively.
 - Agents must never call a stdlib function that has a `y_*` replacement
   (e.g. never call `malloc`/`calloc`/`free`/`memcpy` directly anywhere
   else in this repo) — always go through the `y_*` wrapper instead. The

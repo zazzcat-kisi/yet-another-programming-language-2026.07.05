@@ -66,9 +66,62 @@ y_stm_destructor(stm);
 
 `src/y/stm/alloc/` and `src/y/stm/mem/` are thin, namespaced wrappers around
 the C allocator (`y_stm_alloc_malloc`/`y_stm_alloc_calloc`/`y_stm_alloc_free`)
-and `<string.h>` byte functions (`y_stm_mem_memcpy`). The rest of `y_stm`
-goes through these instead of calling `malloc`/`free`/`memcpy` directly, so
-the underlying implementation can be swapped in one place later.
+and `<string.h>` byte functions (`y_stm_mem_memcpy`/`y_stm_mem_memcmp`). The
+rest of the codebase goes through these instead of calling
+`malloc`/`free`/`memcpy`/`memcmp` directly, so the underlying implementation
+can be swapped in one place later.
+
+### `y_string` — a transactional string, serving the role of `str*`
+
+`src/y/string/include.h` / `src/y/string/implementation.c` provide
+`y_string_t`, a dynamically-sized byte string built on top of `y_stm`,
+playing the role `<string.h>`'s `str*` functions play for plain C strings:
+
+- `y_string_constructor` / `y_string_destructor` — create/tear down a string
+- `y_string_get_length_in_bytes` — current length (like `strlen`)
+- `y_string_read` — copy the string's bytes out (destination must match
+  the current length exactly)
+- `y_string_write` — replace the string's content, resizing as needed
+  (like `strcpy`)
+- `y_string_append` — append to the string's content, resizing as needed
+  (like `strcat`)
+- `y_string_compare` / `y_string_is_equal` — lexicographic byte comparison
+  (like `strcmp`) and an equality convenience
+- `y_string_as_c_string` — a newly allocated, NUL-terminated copy (like
+  `strdup`), released with `y_stm_alloc_free`
+
+Every operation but the constructor takes just `y_string_t *` (or `const
+y_string_t *`) and a `y_stm_transaction_t *` — no separate `y_stm_t *`, since
+a string caches which STM it belongs to. Because a `y_string_t` can be
+shared across overlapping transactions, its current content handle and
+length are themselves stored as versioned STM data behind a small
+fixed-length "descriptor" slot, rather than as plain fields on the host
+struct — so even `y_string_get_length_in_bytes` takes a transaction and can
+fail, and a `y_string_write`/`y_string_append` that resizes the string
+participates in the same first-committer-wins conflict detection as any
+other write.
+
+```c
+#include "y/string/include.h"
+
+y_stm_t *stm = y_stm_constructor();
+
+y_stm_transaction_t *transaction = y_stm_begin_transaction(stm);
+y_string_t *name = y_string_constructor(stm, transaction, "foo", 3);
+y_string_append(name, transaction, "bar", 3); /* now "foobar" */
+
+size_t length_in_bytes = 0;
+y_string_get_length_in_bytes(name, transaction, &length_in_bytes); /* 6 */
+
+char *c_string = y_string_as_c_string(name, transaction); /* "foobar\0" */
+/* ... use c_string ... */
+y_stm_alloc_free(c_string);
+
+y_string_destructor(name, transaction);
+y_stm_commit_transaction(stm, transaction);
+
+y_stm_destructor(stm);
+```
 
 ## Build
 

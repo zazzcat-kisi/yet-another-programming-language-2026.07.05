@@ -12,3 +12,13 @@ target_compile_options(test_y_stm PRIVATE
 )
 
 add_test(NAME y_stm_tests COMMAND test_y_stm)
+
+add_executable(test_y_string test_y_string.c)
+target_link_libraries(test_y_string PRIVATE y_string)
+
+target_compile_options(test_y_string PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
+add_test(NAME y_string_tests COMMAND test_y_string)
