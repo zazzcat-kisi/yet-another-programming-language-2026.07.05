@@ -24,27 +24,26 @@ struct y_string {
 
 y_string_t *y_string_constructor(y_stm_t *stm, y_stm_transaction_t *transaction,
                                   const char *characters, size_t length_in_bytes) {
-    if (transaction == NULL || (characters == NULL && length_in_bytes > 0)) {
+    if (transaction == NULL) {
+        return NULL;
+    }
+    if (characters == NULL && length_in_bytes > 0) {
+        y_stm_fail_transaction(stm, transaction, Y_STRING_ERROR_INVALID_ARGUMENT,
+                                "y_string_constructor: characters is NULL for a nonzero length");
         return NULL;
     }
 
     y_stm_handle_t content = y_stm_allocate_memory(stm, transaction, length_in_bytes);
-    if (content == NULL) {
-        return NULL;
-    }
-    if (!y_stm_write(stm, transaction, content, characters, length_in_bytes)) {
-        return NULL;
-    }
+    y_stm_write(stm, transaction, content, characters, length_in_bytes);
 
     y_stm_handle_t descriptor =
         y_stm_allocate_memory(stm, transaction, sizeof(y_string_descriptor_t));
-    if (descriptor == NULL) {
-        return NULL;
-    }
     y_string_descriptor_t value;
     value.content = content;
     value.length_in_bytes = length_in_bytes;
-    if (!y_stm_write(stm, transaction, descriptor, &value, sizeof(value))) {
+    y_stm_write(stm, transaction, descriptor, &value, sizeof(value));
+
+    if (y_stm_is_rolled_back(stm, transaction)) {
         return NULL;
     }
 
@@ -54,201 +53,189 @@ y_string_t *y_string_constructor(y_stm_t *stm, y_stm_transaction_t *transaction,
     return self;
 }
 
-bool y_string_destructor(y_string_t *self, y_stm_transaction_t *transaction) {
+void y_string_destructor(y_string_t *self, y_stm_transaction_t *transaction) {
     if (self == NULL) {
-        return true;
+        return;
     }
 
-    y_string_descriptor_t value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value))) {
-        return false; /* self is left intact; the caller may retry with a valid transaction */
-    }
-    if (!y_stm_release_memory(self->stm, transaction, value.content)) {
-        return false;
-    }
-    if (!y_stm_release_memory(self->stm, transaction, self->descriptor)) {
-        return false;
-    }
+    y_string_descriptor_t value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value));
+    y_stm_release_memory(self->stm, transaction, value.content);
+    y_stm_release_memory(self->stm, transaction, self->descriptor);
 
     y_stm_alloc_free(self);
-    return true;
 }
 
-bool y_string_get_length_in_bytes(const y_string_t *self, y_stm_transaction_t *transaction,
+void y_string_get_length_in_bytes(const y_string_t *self, y_stm_transaction_t *transaction,
                                    size_t *out_length_in_bytes) {
-    if (self == NULL || out_length_in_bytes == NULL) {
-        return false;
+    if (self == NULL || transaction == NULL || out_length_in_bytes == NULL) {
+        return;
     }
-    y_string_descriptor_t value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value))) {
-        return false;
+    y_string_descriptor_t value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value));
+    if (y_stm_is_rolled_back(self->stm, transaction)) {
+        return;
     }
     *out_length_in_bytes = value.length_in_bytes;
-    return true;
 }
 
-bool y_string_read(const y_string_t *self, y_stm_transaction_t *transaction, char *destination,
+void y_string_read(const y_string_t *self, y_stm_transaction_t *transaction, char *destination,
                     size_t destination_length_in_bytes) {
-    if (self == NULL) {
-        return false;
+    if (self == NULL || transaction == NULL) {
+        return;
     }
-    y_string_descriptor_t value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value))) {
-        return false;
+    y_string_descriptor_t value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value));
+    if (y_stm_is_rolled_back(self->stm, transaction)) {
+        return;
     }
     if (destination_length_in_bytes != value.length_in_bytes) {
-        return false;
+        y_stm_fail_transaction(self->stm, transaction, Y_STRING_ERROR_LENGTH_MISMATCH,
+                                "y_string_read: destination_length_in_bytes doesn't match the string's length");
+        return;
     }
-    return y_stm_read(self->stm, transaction, value.content, destination,
-                       destination_length_in_bytes);
+    y_stm_read(self->stm, transaction, value.content, destination, destination_length_in_bytes);
 }
 
-bool y_string_write(y_string_t *self, y_stm_transaction_t *transaction, const char *characters,
+void y_string_write(y_string_t *self, y_stm_transaction_t *transaction, const char *characters,
                      size_t length_in_bytes) {
-    if (self == NULL || (characters == NULL && length_in_bytes > 0)) {
-        return false;
+    if (self == NULL || transaction == NULL) {
+        return;
+    }
+    if (characters == NULL && length_in_bytes > 0) {
+        y_stm_fail_transaction(self->stm, transaction, Y_STRING_ERROR_INVALID_ARGUMENT,
+                                "y_string_write: characters is NULL for a nonzero length");
+        return;
     }
 
-    y_string_descriptor_t old_value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &old_value, sizeof(old_value))) {
-        return false;
+    y_string_descriptor_t old_value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &old_value, sizeof(old_value));
+    if (y_stm_is_rolled_back(self->stm, transaction)) {
+        return;
     }
 
     if (length_in_bytes == old_value.length_in_bytes) {
-        return y_stm_write(self->stm, transaction, old_value.content, characters, length_in_bytes);
+        y_stm_write(self->stm, transaction, old_value.content, characters, length_in_bytes);
+        return;
     }
 
     y_stm_handle_t new_content = y_stm_allocate_memory(self->stm, transaction, length_in_bytes);
-    if (new_content == NULL) {
-        return false;
-    }
-    if (!y_stm_write(self->stm, transaction, new_content, characters, length_in_bytes)) {
-        /* new_content was never published; the transaction discards it for us. */
-        return false;
-    }
-    if (!y_stm_release_memory(self->stm, transaction, old_value.content)) {
-        return false;
-    }
+    y_stm_write(self->stm, transaction, new_content, characters, length_in_bytes);
+    y_stm_release_memory(self->stm, transaction, old_value.content);
 
     y_string_descriptor_t new_value;
     new_value.content = new_content;
     new_value.length_in_bytes = length_in_bytes;
-    return y_stm_write(self->stm, transaction, self->descriptor, &new_value, sizeof(new_value));
+    y_stm_write(self->stm, transaction, self->descriptor, &new_value, sizeof(new_value));
 }
 
-bool y_string_append(y_string_t *self, y_stm_transaction_t *transaction, const char *characters,
+void y_string_append(y_string_t *self, y_stm_transaction_t *transaction, const char *characters,
                       size_t length_in_bytes) {
-    if (self == NULL || (characters == NULL && length_in_bytes > 0)) {
-        return false;
+    if (self == NULL || transaction == NULL) {
+        return;
+    }
+    if (characters == NULL && length_in_bytes > 0) {
+        y_stm_fail_transaction(self->stm, transaction, Y_STRING_ERROR_INVALID_ARGUMENT,
+                                "y_string_append: characters is NULL for a nonzero length");
+        return;
     }
     if (length_in_bytes == 0) {
-        return true;
+        return;
     }
 
-    y_string_descriptor_t old_value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &old_value, sizeof(old_value))) {
-        return false;
+    y_string_descriptor_t old_value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &old_value, sizeof(old_value));
+    if (y_stm_is_rolled_back(self->stm, transaction)) {
+        return;
     }
 
     size_t combined_length_in_bytes = old_value.length_in_bytes + length_in_bytes;
     unsigned char *combined = y_stm_alloc_malloc(combined_length_in_bytes);
 
-    if (old_value.length_in_bytes > 0 &&
-        !y_stm_read(self->stm, transaction, old_value.content, combined, old_value.length_in_bytes)) {
-        y_stm_alloc_free(combined);
-        return false;
+    if (old_value.length_in_bytes > 0) {
+        y_stm_read(self->stm, transaction, old_value.content, combined, old_value.length_in_bytes);
     }
     y_stm_mem_memcpy(combined + old_value.length_in_bytes, characters, length_in_bytes);
 
-    bool written =
-        y_string_write(self, transaction, (const char *)combined, combined_length_in_bytes);
+    y_string_write(self, transaction, (const char *)combined, combined_length_in_bytes);
     y_stm_alloc_free(combined);
-    return written;
 }
 
-bool y_string_compare(const y_string_t *self, const y_string_t *other,
-                       y_stm_transaction_t *transaction, int *out_comparison) {
-    if (self == NULL || other == NULL || out_comparison == NULL) {
-        return false;
+void y_string_compare(const y_string_t *self, const y_string_t *other,
+                      y_stm_transaction_t *transaction, int *out_comparison) {
+    if (self == NULL || other == NULL || transaction == NULL || out_comparison == NULL) {
+        return;
     }
 
-    y_string_descriptor_t self_value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &self_value, sizeof(self_value))) {
-        return false;
-    }
-    y_string_descriptor_t other_value;
-    if (!y_stm_read(other->stm, transaction, other->descriptor, &other_value,
-                    sizeof(other_value))) {
-        return false;
-    }
+    y_string_descriptor_t self_value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &self_value, sizeof(self_value));
+    y_string_descriptor_t other_value = {0};
+    y_stm_read(other->stm, transaction, other->descriptor, &other_value, sizeof(other_value));
 
     unsigned char *self_bytes = NULL;
     if (self_value.length_in_bytes > 0) {
         self_bytes = y_stm_alloc_malloc(self_value.length_in_bytes);
-        if (!y_stm_read(self->stm, transaction, self_value.content, self_bytes,
-                        self_value.length_in_bytes)) {
-            y_stm_alloc_free(self_bytes);
-            return false;
-        }
+        y_stm_read(self->stm, transaction, self_value.content, self_bytes,
+                   self_value.length_in_bytes);
     }
 
     unsigned char *other_bytes = NULL;
     if (other_value.length_in_bytes > 0) {
         other_bytes = y_stm_alloc_malloc(other_value.length_in_bytes);
-        if (!y_stm_read(other->stm, transaction, other_value.content, other_bytes,
-                        other_value.length_in_bytes)) {
-            y_stm_alloc_free(self_bytes);
-            y_stm_alloc_free(other_bytes);
-            return false;
-        }
+        y_stm_read(other->stm, transaction, other_value.content, other_bytes,
+                   other_value.length_in_bytes);
     }
 
-    size_t shared_length_in_bytes = self_value.length_in_bytes < other_value.length_in_bytes
-                                         ? self_value.length_in_bytes
-                                         : other_value.length_in_bytes;
-    int result = 0;
-    if (shared_length_in_bytes > 0) {
-        result = y_stm_mem_memcmp(self_bytes, other_bytes, shared_length_in_bytes);
-    }
-    if (result == 0 && self_value.length_in_bytes != other_value.length_in_bytes) {
-        result = self_value.length_in_bytes < other_value.length_in_bytes ? -1 : 1;
+    if (!y_stm_is_rolled_back(self->stm, transaction)) {
+        size_t shared_length_in_bytes = self_value.length_in_bytes < other_value.length_in_bytes
+                                             ? self_value.length_in_bytes
+                                             : other_value.length_in_bytes;
+        int result = 0;
+        if (shared_length_in_bytes > 0) {
+            result = y_stm_mem_memcmp(self_bytes, other_bytes, shared_length_in_bytes);
+        }
+        if (result == 0 && self_value.length_in_bytes != other_value.length_in_bytes) {
+            result = self_value.length_in_bytes < other_value.length_in_bytes ? -1 : 1;
+        }
+        *out_comparison = result;
     }
 
     y_stm_alloc_free(self_bytes);
     y_stm_alloc_free(other_bytes);
-    *out_comparison = result;
-    return true;
 }
 
-bool y_string_is_equal(const y_string_t *self, const y_string_t *other,
-                        y_stm_transaction_t *transaction, bool *out_is_equal) {
+void y_string_is_equal(const y_string_t *self, const y_string_t *other,
+                       y_stm_transaction_t *transaction, bool *out_is_equal) {
     if (out_is_equal == NULL) {
-        return false;
+        return;
     }
     int comparison = 0;
-    if (!y_string_compare(self, other, transaction, &comparison)) {
-        return false;
+    y_string_compare(self, other, transaction, &comparison);
+    if (self != NULL && other != NULL && transaction != NULL &&
+        !y_stm_is_rolled_back(self->stm, transaction)) {
+        *out_is_equal = (comparison == 0);
     }
-    *out_is_equal = (comparison == 0);
-    return true;
 }
 
 char *y_string_as_c_string(const y_string_t *self, y_stm_transaction_t *transaction) {
-    if (self == NULL) {
+    if (self == NULL || transaction == NULL) {
         return NULL;
     }
 
-    y_string_descriptor_t value;
-    if (!y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value))) {
+    y_string_descriptor_t value = {0};
+    y_stm_read(self->stm, transaction, self->descriptor, &value, sizeof(value));
+    if (y_stm_is_rolled_back(self->stm, transaction)) {
         return NULL;
     }
 
     char *result = y_stm_alloc_malloc(value.length_in_bytes + 1);
 
-    if (value.length_in_bytes > 0 &&
-        !y_stm_read(self->stm, transaction, value.content, result, value.length_in_bytes)) {
-        y_stm_alloc_free(result);
-        return NULL;
+    if (value.length_in_bytes > 0) {
+        y_stm_read(self->stm, transaction, value.content, result, value.length_in_bytes);
+        if (y_stm_is_rolled_back(self->stm, transaction)) {
+            y_stm_alloc_free(result);
+            return NULL;
+        }
     }
     result[value.length_in_bytes] = '\0';
     return result;

@@ -37,10 +37,24 @@ is called on it:
   — start a transaction, and either commit it (fails on conflict) or abort it
 - `y_stm_allocate_memory` / `y_stm_release_memory` — manage memory through the STM
 - `y_stm_read` / `y_stm_write` — read/write the bytes at a handle
+- `y_stm_is_rolled_back` / `y_stm_get_error` — check a transaction's status
+  and last recorded failure
+- `y_stm_fail_transaction` — for libraries built on `y_stm` (e.g. `y_string`)
+  to report their own validation failures the same way `y_stm` reports its own
 
 `y_stm_allocate_memory` hands back a `y_stm_handle_t` — an opaque reference,
 not a usable pointer. Don't dereference it; always go through `y_stm_read`/
 `y_stm_write`.
+
+`y_stm_allocate_memory`/`y_stm_release_memory`/`y_stm_read`/`y_stm_write`
+don't return an error code. On failure (a stale snapshot, a conflicting
+committer, a bad handle, ...) they record why via `y_error_set` and roll
+the transaction back for you, instead of returning one. From that point,
+`y_stm_is_rolled_back` is true and every further operation against that
+transaction is a safe no-op that changes nothing — so it's fine to keep
+calling things without checking each one, and check `y_stm_is_rolled_back`
+only where it's actually useful, e.g. to skip expensive work you know would
+just be discarded:
 
 ```c
 #include "y/stm/include.h"
@@ -53,14 +67,27 @@ node_t node = {0};
 /* ... build up the data structure ... */
 y_stm_write(stm, transaction, handle, &node, sizeof(node));
 
-if (something_went_wrong) {
-    y_stm_rollback_transaction(stm, transaction); /* node is discarded */
-} else if (!y_stm_commit_transaction(stm, transaction)) {
-    /* another transaction committed a conflicting change; retry */
+if (y_stm_is_rolled_back(stm, transaction)) {
+    y_error_t error = y_error_get(y_stm_get_error(stm, transaction));
+    fprintf(stderr, "transaction failed (%d): %s\n", error.code, error.message);
+}
+
+if (!y_stm_commit_transaction(stm, transaction)) {
+    /* rolled back already, or a conflicting change committed first; retry */
 }
 
 y_stm_destructor(stm);
 ```
+
+### `y_error` — recording why something failed
+
+`src/y/error/include.h` / `src/y/error/implementation.c` provide
+`y_error_t`, a small value type holding a `code` and a `message`, along with
+`y_error_set`/`y_error_get`. It's what `y_stm` uses to record *why* a
+transaction was rolled back (see `y_stm_get_error` above) once it stopped
+returning an error code for that. Its fields are declared in its own header
+(unlike most other state objects here) since it needs to be embedded by
+value inside its owner; go through `y_error_set`/`y_error_get` anyway.
 
 ### `y_fatal` — unrecoverable errors
 
@@ -102,16 +129,18 @@ playing the role `<string.h>`'s `str*` functions play for plain C strings:
 - `y_string_as_c_string` — a newly allocated, NUL-terminated copy (like
   `strdup`), released with `y_stm_alloc_free`
 
-Every operation but the constructor takes just `y_string_t *` (or `const
-y_string_t *`) and a `y_stm_transaction_t *` — no separate `y_stm_t *`, since
-a string caches which STM it belongs to. Because a `y_string_t` can be
-shared across overlapping transactions, its current content handle and
-length are themselves stored as versioned STM data behind a small
-fixed-length "descriptor" slot, rather than as plain fields on the host
-struct — so even `y_string_get_length_in_bytes` takes a transaction and can
-fail, and a `y_string_write`/`y_string_append` that resizes the string
-participates in the same first-committer-wins conflict detection as any
-other write.
+Every operation but the constructor and `y_string_as_c_string` takes just
+`y_string_t *` (or `const y_string_t *`) and a `y_stm_transaction_t *` — no
+separate `y_stm_t *`, since a string caches which STM it belongs to. Because
+a `y_string_t` can be shared across overlapping transactions, its current
+content handle and length are themselves stored as versioned STM data
+behind a small fixed-length "descriptor" slot, rather than as plain fields
+on the host struct — so even `y_string_get_length_in_bytes` takes a
+transaction, and a `y_string_write`/`y_string_append` that resizes the
+string participates in the same first-committer-wins conflict detection as
+any other write. Like `y_stm`'s own operations, these don't return an error
+code — a failure reports itself through `y_stm_fail_transaction` and rolls
+`transaction` back, checkable via `y_stm_is_rolled_back`/`y_stm_get_error`.
 
 ```c
 #include "y/string/include.h"

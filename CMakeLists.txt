@@ -31,6 +31,16 @@ target_compile_options(y_fatal PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/W4>
 )
 
+add_library(y_error
+    src/y/error/implementation.c
+)
+target_include_directories(y_error PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_compile_options(y_error PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
 add_library(y_stm
     src/y/stm/implementation.c
     src/y/stm/alloc/implementation.c
@@ -38,6 +48,7 @@ add_library(y_stm
 )
 target_include_directories(y_stm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(y_stm PRIVATE y_fatal)
+target_link_libraries(y_stm PUBLIC y_error)
 
 target_compile_options(y_stm PRIVATE
     $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>

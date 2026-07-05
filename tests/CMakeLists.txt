@@ -35,3 +35,13 @@ add_test(NAME y_fatal_terminates_the_process COMMAND test_y_fatal)
 set_tests_properties(y_fatal_terminates_the_process PROPERTIES
     WILL_FAIL TRUE
 )
+
+add_executable(test_y_error test_y_error.c)
+target_link_libraries(test_y_error PRIVATE y_error)
+
+target_compile_options(test_y_error PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
+add_test(NAME y_error_tests COMMAND test_y_error)

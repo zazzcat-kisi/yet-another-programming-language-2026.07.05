@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "y/error/include.h"
 #include "y/stm/alloc/include.h"
 #include "y/stm/mem/include.h"
 
@@ -35,12 +36,19 @@ typedef struct y_stm_write_record {
     struct y_stm_write_record *next;
 } y_stm_write_record_t;
 
+/* rolled_back/error are not STM-managed state: they're plain fields on
+ * this host struct, so a failure that trips them (see
+ * y_stm_transaction_fail) leaves the rest of the transaction's
+ * bookkeeping (and this record of *why* it failed) intact and inspectable
+ * even after its reads/writes/owned slots have been discarded. */
 struct y_stm_transaction {
     y_stm_t *owner;
     unsigned long long snapshot_version;
     y_stm_slot_ref_t *reads;
     y_stm_slot_ref_t *owned; /* slots allocated by this transaction, not yet committed */
     y_stm_write_record_t *writes; /* newest first */
+    bool rolled_back;
+    y_error_t error;
 };
 
 struct y_stm {
@@ -120,6 +128,39 @@ static void y_stm_slot_free(y_stm_slot_t *slot) {
     y_stm_alloc_free(slot);
 }
 
+/* Discards everything this transaction allocated but never published (it
+ * has no version yet, and nobody else can reach it), and marks it rolled
+ * back. Idempotent: a transaction that's already rolled back is left
+ * untouched, so this is safe to call both from an internal failure and
+ * later from an explicit y_stm_rollback_transaction on the same
+ * transaction without double-freeing its owned slots. Uses
+ * transaction->owner (not a possibly-mismatched caller-supplied y_stm_t)
+ * so it's safe to call even when the triggering failure *was* a
+ * wrong-instance misuse. */
+static void y_stm_transaction_mark_rolled_back(y_stm_transaction_t *transaction) {
+    if (transaction->rolled_back) {
+        return;
+    }
+    transaction->rolled_back = true;
+
+    for (y_stm_slot_ref_t *ref = transaction->owned; ref != NULL; ref = ref->next) {
+        y_stm_unlink_slot(transaction->owner, ref->slot);
+        y_stm_slot_free(ref->slot);
+    }
+}
+
+/* Records the failure (unless one was already recorded, so the first
+ * failure's diagnostic wins) and rolls the transaction back. This is what
+ * every per-operation failure path below calls instead of returning an
+ * error code -- see CLAUDE.md's "Rollback on failure" section. */
+static void y_stm_transaction_fail(y_stm_transaction_t *transaction, int code,
+                                    const char *message) {
+    if (!transaction->rolled_back) {
+        y_error_set(&transaction->error, code, message);
+    }
+    y_stm_transaction_mark_rolled_back(transaction);
+}
+
 static void y_stm_transaction_destroy(y_stm_transaction_t *transaction) {
     y_stm_write_record_t *record = transaction->writes;
     while (record != NULL) {
@@ -159,15 +200,43 @@ y_stm_transaction_t *y_stm_begin_transaction(y_stm_t *stm) {
     return transaction;
 }
 
+bool y_stm_is_rolled_back(const y_stm_t *stm, const y_stm_transaction_t *transaction) {
+    if (transaction == NULL || transaction->owner != stm) {
+        return false;
+    }
+    return transaction->rolled_back;
+}
+
+const y_error_t *y_stm_get_error(const y_stm_t *stm, const y_stm_transaction_t *transaction) {
+    if (transaction == NULL || transaction->owner != stm) {
+        return NULL;
+    }
+    return &transaction->error;
+}
+
+void y_stm_fail_transaction(y_stm_t *stm, y_stm_transaction_t *transaction, int code,
+                             const char *message) {
+    if (transaction == NULL || transaction->owner != stm) {
+        return;
+    }
+    y_stm_transaction_fail(transaction, code, message);
+}
+
 bool y_stm_commit_transaction(y_stm_t *stm, y_stm_transaction_t *transaction) {
     if (transaction == NULL || transaction->owner != stm) {
+        return false;
+    }
+    if (transaction->rolled_back) {
+        y_stm_transaction_destroy(transaction);
         return false;
     }
 
     for (y_stm_slot_ref_t *ref = transaction->reads; ref != NULL; ref = ref->next) {
         if (ref->slot->versions != NULL &&
             ref->slot->versions->version > transaction->snapshot_version) {
-            y_stm_rollback_transaction(stm, transaction);
+            y_stm_transaction_fail(transaction, Y_STM_ERROR_CONFLICT,
+                                   "y_stm_commit_transaction: a read was invalidated by a newer commit");
+            y_stm_transaction_destroy(transaction);
             return false;
         }
     }
@@ -181,7 +250,9 @@ bool y_stm_commit_transaction(y_stm_t *stm, y_stm_transaction_t *transaction) {
         }
         if (record->slot->versions != NULL &&
             record->slot->versions->version > transaction->snapshot_version) {
-            y_stm_rollback_transaction(stm, transaction);
+            y_stm_transaction_fail(transaction, Y_STM_ERROR_CONFLICT,
+                                   "y_stm_commit_transaction: a write was invalidated by a newer commit");
+            y_stm_transaction_destroy(transaction);
             return false;
         }
     }
@@ -235,19 +306,21 @@ void y_stm_rollback_transaction(y_stm_t *stm, y_stm_transaction_t *transaction) 
         return;
     }
 
-    /* Nothing this transaction allocated was ever published (it has no
-     * version yet), so it's safe to discard unconditionally. */
-    for (y_stm_slot_ref_t *ref = transaction->owned; ref != NULL; ref = ref->next) {
-        y_stm_unlink_slot(stm, ref->slot);
-        y_stm_slot_free(ref->slot);
-    }
-
+    y_stm_transaction_mark_rolled_back(transaction);
     y_stm_transaction_destroy(transaction);
 }
 
 y_stm_handle_t y_stm_allocate_memory(y_stm_t *stm, y_stm_transaction_t *transaction,
                                      size_t length_in_bytes) {
-    if (transaction == NULL || transaction->owner != stm) {
+    if (transaction == NULL) {
+        return NULL;
+    }
+    if (transaction->rolled_back) {
+        return NULL;
+    }
+    if (transaction->owner != stm) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_TRANSACTION,
+                               "y_stm_allocate_memory: transaction belongs to a different y_stm_t");
         return NULL;
     }
 
@@ -260,9 +333,22 @@ y_stm_handle_t y_stm_allocate_memory(y_stm_t *stm, y_stm_transaction_t *transact
     return slot;
 }
 
-bool y_stm_release_memory(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle) {
-    if (transaction == NULL || transaction->owner != stm || handle == NULL) {
-        return false;
+void y_stm_release_memory(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle) {
+    if (transaction == NULL) {
+        return;
+    }
+    if (transaction->rolled_back) {
+        return;
+    }
+    if (transaction->owner != stm) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_TRANSACTION,
+                               "y_stm_release_memory: transaction belongs to a different y_stm_t");
+        return;
+    }
+    if (handle == NULL) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_HANDLE,
+                               "y_stm_release_memory: handle is NULL");
+        return;
     }
     y_stm_slot_t *slot = handle;
 
@@ -271,13 +357,18 @@ bool y_stm_release_memory(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_
         const y_stm_version_t *visible =
             y_stm_slot_visible_version(slot, transaction->snapshot_version);
         if (visible == NULL || visible->tombstone) {
-            return false;
+            y_stm_transaction_fail(
+                transaction, Y_STM_ERROR_NOT_VISIBLE,
+                "y_stm_release_memory: handle is not visible in this transaction's snapshot");
+            return;
         }
     }
 
     y_stm_write_record_t *existing = y_stm_transaction_find_write(transaction, slot);
     if (existing != NULL && existing->is_release) {
-        return false;
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_ALREADY_RELEASED,
+                               "y_stm_release_memory: handle was already released in this transaction");
+        return;
     }
 
     y_stm_write_record_t *record = y_stm_alloc_malloc(sizeof(y_stm_write_record_t));
@@ -286,47 +377,79 @@ bool y_stm_release_memory(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_
     record->is_release = true;
     record->next = transaction->writes;
     transaction->writes = record;
-    return true;
 }
 
-bool y_stm_read(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle, void *out,
+void y_stm_read(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle, void *out,
                 size_t length_in_bytes) {
-    if (transaction == NULL || transaction->owner != stm || handle == NULL || out == NULL) {
-        return false;
+    if (transaction == NULL) {
+        return;
+    }
+    if (transaction->rolled_back) {
+        return;
+    }
+    if (transaction->owner != stm) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_TRANSACTION,
+                               "y_stm_read: transaction belongs to a different y_stm_t");
+        return;
+    }
+    if (handle == NULL || out == NULL) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_HANDLE,
+                               "y_stm_read: handle or destination is NULL");
+        return;
     }
     y_stm_slot_t *slot = handle;
     if (length_in_bytes != slot->length_in_bytes) {
-        return false;
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_LENGTH_MISMATCH,
+                               "y_stm_read: length_in_bytes doesn't match the slot's length");
+        return;
     }
 
     y_stm_write_record_t *pending = y_stm_transaction_find_write(transaction, slot);
     if (pending != NULL) {
         if (pending->is_release) {
-            return false;
+            y_stm_transaction_fail(transaction, Y_STM_ERROR_NOT_VISIBLE,
+                                   "y_stm_read: handle was released earlier in this transaction");
+            return;
         }
         y_stm_mem_memcpy(out, pending->data, length_in_bytes);
-        return true;
+        return;
     }
 
     const y_stm_version_t *visible =
         y_stm_slot_visible_version(slot, transaction->snapshot_version);
     if (visible == NULL || visible->tombstone) {
-        return false;
+        y_stm_transaction_fail(
+            transaction, Y_STM_ERROR_NOT_VISIBLE,
+            "y_stm_read: handle is not visible in this transaction's snapshot");
+        return;
     }
     y_stm_mem_memcpy(out, visible->data, length_in_bytes);
     y_stm_slot_ref_push(&transaction->reads, slot);
-    return true;
 }
 
-bool y_stm_write(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle,
+void y_stm_write(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t handle,
                   const void *data, size_t length_in_bytes) {
-    if (transaction == NULL || transaction->owner != stm || handle == NULL ||
-        (data == NULL && length_in_bytes > 0)) {
-        return false;
+    if (transaction == NULL) {
+        return;
+    }
+    if (transaction->rolled_back) {
+        return;
+    }
+    if (transaction->owner != stm) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_TRANSACTION,
+                               "y_stm_write: transaction belongs to a different y_stm_t");
+        return;
+    }
+    if (handle == NULL || (data == NULL && length_in_bytes > 0)) {
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_INVALID_HANDLE,
+                               "y_stm_write: handle is NULL or data is NULL for a nonzero length");
+        return;
     }
     y_stm_slot_t *slot = handle;
     if (length_in_bytes != slot->length_in_bytes) {
-        return false;
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_LENGTH_MISMATCH,
+                               "y_stm_write: length_in_bytes doesn't match the slot's length");
+        return;
     }
 
     bool owned = y_stm_transaction_owns(transaction, slot);
@@ -334,13 +457,18 @@ bool y_stm_write(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t 
         const y_stm_version_t *visible =
             y_stm_slot_visible_version(slot, transaction->snapshot_version);
         if (visible == NULL || visible->tombstone) {
-            return false;
+            y_stm_transaction_fail(
+                transaction, Y_STM_ERROR_NOT_VISIBLE,
+                "y_stm_write: handle is not visible in this transaction's snapshot");
+            return;
         }
     }
 
     y_stm_write_record_t *existing = y_stm_transaction_find_write(transaction, slot);
     if (existing != NULL && existing->is_release) {
-        return false;
+        y_stm_transaction_fail(transaction, Y_STM_ERROR_ALREADY_RELEASED,
+                               "y_stm_write: handle was already released in this transaction");
+        return;
     }
 
     unsigned char *copy = NULL;
@@ -355,5 +483,4 @@ bool y_stm_write(y_stm_t *stm, y_stm_transaction_t *transaction, y_stm_handle_t 
     record->is_release = false;
     record->next = transaction->writes;
     transaction->writes = record;
-    return true;
 }
