@@ -91,15 +91,81 @@ this repo.
   (returns `bool`, a null pointer, a negative/sentinel value, an `errno`,
   etc.) must have its result checked at the call site; propagate the
   failure to the caller or handle it there, never silently discard it.
+- There are two deliberate exceptions, described in their own sections
+  below: a condition routed through `y_fatal_terminate` ("Fatal errors"),
+  and a `y_stm` transactional operation that fails and rolls its
+  transaction back instead of returning an error code ("Rollback on
+  failure"). In both cases there is no error code to check or propagate
+  by design — don't add a dead NULL/failure check for either.
+
+## Fatal errors
+
+- `y_fatal_terminate` (namespace `y_fatal`, in `src/y/fatal/`) is this
+  project's way to give up on an unrecoverable condition: it prints a
+  diagnostic and terminates the process immediately. It takes no state
+  object (it's a purely functional utility, like `y_stm_alloc`/`y_stm_mem`)
+  and never returns.
+- Out-of-memory is the current trigger: `y_stm_alloc_malloc`/
+  `y_stm_alloc_calloc` call `y_fatal_terminate` instead of returning NULL
+  for a nonzero-size allocation that fails, since this project has no
+  strategy for continuing after an allocation failure. Because of this,
+  their callers must not (and don't need to) check the result for NULL —
+  see "Error handling" above.
+- Agents must not call `abort`/`exit`/`_exit` directly elsewhere in this
+  repo for an unrecoverable condition — route it through
+  `y_fatal_terminate` instead, the same way allocation goes through
+  `y_stm_alloc`.
+
+## Rollback on failure
+
+- Transactional operations against `y_stm` (`y_stm_allocate_memory`,
+  `y_stm_release_memory`, `y_stm_read`, `y_stm_write`) do not return an
+  error code. On failure (a stale snapshot, a conflicting committer, a
+  bad handle, ...) they record the failure via `y_error_set` and roll the
+  transaction back via `y_stm_rollback_transaction` instead of returning
+  one. This is the second deliberate exception to "never ignore an error
+  code" above: there's no bool/NULL result to check, because the failure
+  already happened and was already handled for you.
+- `y_error_t` (namespace `y_error`, in `src/y/error/`) is a small,
+  transparent value type holding a code and a message — this project's way
+  of recording *why* something failed once it no longer returns an error
+  code for it. It's a "class" per the "Classes / namespaces" rules above,
+  but its fields are declared in its own `include.h` (rather than kept
+  opaque) because it needs to be embedded by value inside its owner. Go
+  through `y_error_set`/`y_error_get` rather than touching the fields
+  directly anyway.
+- `y_stm_is_rolled_back` reports whether a transaction has been rolled
+  back, whether by an explicit `y_stm_rollback_transaction` call or a
+  failure inside one of the operations above. Once true, no further
+  operation against that transaction ever changes anything in the STM —
+  every one of them becomes a safe no-op, silently, without touching any
+  output parameters. Code may check `y_stm_is_rolled_back` where it's
+  actually useful (e.g. to skip an expensive computation whose result
+  would just be discarded), but does not need to check it, or any
+  per-operation result, for correctness.
+- `y_stm_get_error` returns the most recently recorded error for a
+  transaction. That record is plain (non-STM-managed) state, so it
+  survives the rollback it describes and stays inspectable right up
+  until the transaction is finally consumed by
+  `y_stm_commit_transaction`/`y_stm_rollback_transaction` (same as the
+  transaction handle itself) — don't call `y_stm_is_rolled_back`/
+  `y_stm_get_error` after either of those.
+- Libraries built on `y_stm` (e.g. `y_string`) must follow the same
+  pattern for their own validation failures, using `y_stm_fail_transaction`
+  instead of introducing an error code of their own — don't reintroduce a
+  bool/NULL return for something that can be reported this way.
+  `y_stm_commit_transaction` is the one exception that keeps returning
+  `bool`: it's a transaction's one meaningful, terminal outcome, not a
+  per-operation error code.
 
 ## Standard library replacements
 
 - `y_stm_alloc` provides this project's replacements for the C allocator
   — `y_stm_alloc_malloc`, `y_stm_alloc_calloc`, `y_stm_alloc_free` — and
   `y_stm_mem` provides replacements for `<string.h>` byte-manipulation
-  functions as they're needed (currently `y_stm_mem_memcpy`). Add to
-  either only the functions actually used elsewhere in the codebase, not
-  the full libc surface speculatively.
+  functions as they're needed (currently `y_stm_mem_memcpy`,
+  `y_stm_mem_memcmp`). Add to either only the functions actually used
+  elsewhere in the codebase, not the full libc surface speculatively.
 - Agents must never call a stdlib function that has a `y_*` replacement
   (e.g. never call `malloc`/`calloc`/`free`/`memcpy` directly anywhere
   else in this repo) — always go through the `y_*` wrapper instead. The
