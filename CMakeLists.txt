@@ -55,11 +55,23 @@ target_compile_options(y_stm PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/W4>
 )
 
+add_library(y_blob
+    src/y/blob/implementation.c
+)
+target_include_directories(y_blob PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(y_blob PUBLIC y_stm)
+
+target_compile_options(y_blob PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
 add_library(y_string
     src/y/string/implementation.c
 )
 target_include_directories(y_string PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(y_string PUBLIC y_stm)
+target_link_libraries(y_string PRIVATE y_blob)
 
 target_compile_options(y_string PRIVATE
     $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>

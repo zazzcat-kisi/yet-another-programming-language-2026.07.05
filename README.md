@@ -110,11 +110,43 @@ never return NULL for a nonzero-size request — out-of-memory calls
 `y_fatal_terminate` instead of propagating a failure their callers would
 have no way to recover from anyway.
 
+### `y_blob` — a resizable, transactional byte buffer
+
+`src/y/blob/include.h` / `src/y/blob/implementation.c` provide `y_blob_t`,
+a dynamically-sized buffer of raw bytes built on top of `y_stm`. It's the
+resizable-storage primitive that byte-container classes like `y_string` are
+built on: it owns the mechanics of growing and shrinking content backed by
+the STM, so those higher-level classes don't have to reimplement them:
+
+- `y_blob_constructor` / `y_blob_destructor` — create/tear down a blob
+- `y_blob_get_length_in_bytes` — current length
+- `y_blob_read` — copy the blob's bytes out (destination must match the
+  current length exactly)
+- `y_blob_write` — replace the content, resizing as needed
+- `y_blob_append` — append to the content, resizing as needed
+- `y_blob_compare` / `y_blob_is_equal` — lexicographic byte comparison and
+  an equality convenience
+
+Unlike `y_string`, a blob is just bytes: it takes `const void *`/`void *`
+rather than `const char *`, holds arbitrary binary data (embedded NUL bytes
+are content, not terminators), and has no C-string conversion. Because an
+individual `y_stm` slot's length is fixed at allocation but a blob's content
+is not, which slot currently holds a blob's bytes and how long they are is
+itself versioned STM data (behind a small fixed-length "descriptor" slot),
+so a `y_blob_write`/`y_blob_append` that resizes participates in the same
+first-committer-wins conflict detection as any other write, and even
+`y_blob_get_length_in_bytes` takes a transaction. Like `y_stm`'s own
+operations, these don't return an error code — a failure reports itself
+through `y_stm_fail_transaction` (under `Y_BLOB_ERROR_*`) and rolls
+`transaction` back.
+
 ### `y_string` — a transactional string, serving the role of `str*`
 
 `src/y/string/include.h` / `src/y/string/implementation.c` provide
-`y_string_t`, a dynamically-sized byte string built on top of `y_stm`,
-playing the role `<string.h>`'s `str*` functions play for plain C strings:
+`y_string_t`, a dynamically-sized byte string that, under the hood, stores
+its content in a `y_blob` (see above) and adds string semantics on top of
+it, playing the role `<string.h>`'s `str*` functions play for plain C
+strings:
 
 - `y_string_constructor` / `y_string_destructor` — create/tear down a string
 - `y_string_get_length_in_bytes` — current length (like `strlen`)
@@ -131,16 +163,19 @@ playing the role `<string.h>`'s `str*` functions play for plain C strings:
 
 Every operation but the constructor and `y_string_as_c_string` takes just
 `y_string_t *` (or `const y_string_t *`) and a `y_stm_transaction_t *` — no
-separate `y_stm_t *`, since a string caches which STM it belongs to. Because
-a `y_string_t` can be shared across overlapping transactions, its current
-content handle and length are themselves stored as versioned STM data
-behind a small fixed-length "descriptor" slot, rather than as plain fields
-on the host struct — so even `y_string_get_length_in_bytes` takes a
-transaction, and a `y_string_write`/`y_string_append` that resizes the
-string participates in the same first-committer-wins conflict detection as
-any other write. Like `y_stm`'s own operations, these don't return an error
-code — a failure reports itself through `y_stm_fail_transaction` and rolls
-`transaction` back, checkable via `y_stm_is_rolled_back`/`y_stm_get_error`.
+separate `y_stm_t *`, since a string caches which STM it belongs to. The
+resizable storage — including the versioned "descriptor" slot that keeps a
+string's content handle and length isolated across overlapping transactions
+— lives in the underlying `y_blob`, so even `y_string_get_length_in_bytes`
+takes a transaction, and a `y_string_write`/`y_string_append` that resizes
+the string participates in the same first-committer-wins conflict detection
+as any other write. Like `y_stm`'s own operations, these don't return an
+error code — a failure reports itself through `y_stm_fail_transaction` and
+rolls `transaction` back, checkable via
+`y_stm_is_rolled_back`/`y_stm_get_error`. `y_string` keeps its own
+`Y_STRING_ERROR_*` codes for the validation failures at its public boundary
+(a NULL/length-mismatched argument), so callers never see the `y_blob`
+that backs it.
 
 ```c
 #include "y/string/include.h"
