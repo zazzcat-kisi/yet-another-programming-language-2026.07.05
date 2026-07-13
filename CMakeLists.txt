@@ -78,6 +78,18 @@ target_compile_options(y_string PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/W4>
 )
 
+add_library(y_packed_array
+    src/y/packed_array/implementation.c
+)
+target_include_directories(y_packed_array PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(y_packed_array PUBLIC y_stm)
+target_link_libraries(y_packed_array PRIVATE y_blob)
+
+target_compile_options(y_packed_array PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests)

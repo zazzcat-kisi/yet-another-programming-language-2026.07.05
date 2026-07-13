@@ -23,6 +23,16 @@ target_compile_options(test_y_blob PRIVATE
 
 add_test(NAME y_blob_tests COMMAND test_y_blob)
 
+add_executable(test_y_packed_array test_y_packed_array.c)
+target_link_libraries(test_y_packed_array PRIVATE y_packed_array)
+
+target_compile_options(test_y_packed_array PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic>
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+)
+
+add_test(NAME y_packed_array_tests COMMAND test_y_packed_array)
+
 add_executable(test_y_string test_y_string.c)
 target_link_libraries(test_y_string PRIVATE y_string)
 

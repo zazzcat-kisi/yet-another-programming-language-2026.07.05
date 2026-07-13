@@ -110,43 +110,70 @@ never return NULL for a nonzero-size request — out-of-memory calls
 `y_fatal_terminate` instead of propagating a failure their callers would
 have no way to recover from anyway.
 
-### `y_blob` — a resizable, transactional byte buffer
+### `y_blob` — a fixed-length, transactional byte buffer
 
 `src/y/blob/include.h` / `src/y/blob/implementation.c` provide `y_blob_t`,
-a dynamically-sized buffer of raw bytes built on top of `y_stm`. It's the
-resizable-storage primitive that byte-container classes like `y_string` are
-built on: it owns the mechanics of growing and shrinking content backed by
-the STM, so those higher-level classes don't have to reimplement them:
+a fixed-length buffer of raw bytes built on top of `y_stm`. It's the
+fixed-size storage primitive that byte-container classes like `y_string` and
+`y_packed_array` are built on:
 
 - `y_blob_constructor` / `y_blob_destructor` — create/tear down a blob
-- `y_blob_get_length_in_bytes` — current length
+- `y_blob_get_length_in_bytes` — the blob's fixed length (immutable, so it
+  needs no transaction)
 - `y_blob_read` — copy the blob's bytes out (destination must match the
-  current length exactly)
-- `y_blob_write` — replace the content, resizing as needed
-- `y_blob_append` — append to the content, resizing as needed
-- `y_blob_compare` / `y_blob_is_equal` — lexicographic byte comparison and
-  an equality convenience
+  fixed length exactly)
+- `y_blob_write` — overwrite the bytes in place (the new length must equal
+  the fixed length)
+
+A blob's length is fixed at construction and never changes: there is
+deliberately **no append or resizing write**. Growing and shrinking are a
+higher-level concern — a class that needs a resizable buffer (like
+`y_string`) layers that on top by allocating a new blob and copying, rather
+than having the blob grow underneath it. Because the length is immutable, a
+single fixed `y_stm` slot holds the bytes directly (no versioned
+"descriptor" indirection), and `y_blob_get_length_in_bytes` needs no
+transaction.
 
 Unlike `y_string`, a blob is just bytes: it takes `const void *`/`void *`
-rather than `const char *`, holds arbitrary binary data (embedded NUL bytes
-are content, not terminators), and has no C-string conversion. Because an
-individual `y_stm` slot's length is fixed at allocation but a blob's content
-is not, which slot currently holds a blob's bytes and how long they are is
-itself versioned STM data (behind a small fixed-length "descriptor" slot),
-so a `y_blob_write`/`y_blob_append` that resizes participates in the same
-first-committer-wins conflict detection as any other write, and even
-`y_blob_get_length_in_bytes` takes a transaction. Like `y_stm`'s own
-operations, these don't return an error code — a failure reports itself
-through `y_stm_fail_transaction` (under `Y_BLOB_ERROR_*`) and rolls
-`transaction` back.
+rather than `const char *`, and holds arbitrary binary data (embedded NUL
+bytes are content, not terminators). Like `y_stm`'s own operations, its
+read/write don't return an error code — a failure (including a length that
+doesn't match the fixed length) reports itself through
+`y_stm_fail_transaction` (under `Y_BLOB_ERROR_*`) and rolls `transaction`
+back.
+
+### `y_packed_array` — a fixed-count, transactional array
+
+`src/y/packed_array/include.h` / `src/y/packed_array/implementation.c`
+provide `y_packed_array_t`, a fixed-count array of fixed-size elements packed
+contiguously into a single `y_blob`:
+
+- `y_packed_array_constructor` / `y_packed_array_destructor` — create
+  (zero-initialized) / tear down an array
+- `y_packed_array_get_count` / `y_packed_array_get_element_length_in_bytes` —
+  the fixed dimensions (immutable, so no transaction)
+- `y_packed_array_get` / `y_packed_array_set` — read/overwrite the element at
+  an index (both validate the index and the element length)
+
+The count and element length are fixed at construction — like the blob it
+sits on, a packed array never grows, which is exactly why it fits a fixed
+blob so directly. Its `Y_PACKED_ARRAY_ERROR_*` failures (out-of-range index,
+wrong element length, an overflowing size at construction) report themselves
+through `y_stm_fail_transaction` and roll `transaction` back. Because all the
+elements share one packed `y_stm` slot, a `y_packed_array_set` is a
+read-modify-write of the whole buffer, and any two transactions that each
+write *any* element conflict at commit under first-committer-wins — the
+trade-off of packing everything contiguously into one slot.
 
 ### `y_string` — a transactional string, serving the role of `str*`
 
 `src/y/string/include.h` / `src/y/string/implementation.c` provide
-`y_string_t`, a dynamically-sized byte string that, under the hood, stores
-its content in a `y_blob` (see above) and adds string semantics on top of
-it, playing the role `<string.h>`'s `str*` functions play for plain C
-strings:
+`y_string_t`, a dynamically-sized byte string that owns the growing concern
+itself: it stores a fixed-length "descriptor" record (naming its current
+content slot and length) in a `y_blob`, and resizes by allocating a new
+content slot and versioning the swap through that descriptor. It adds string
+semantics on top, playing the role `<string.h>`'s `str*` functions play for
+plain C strings:
 
 - `y_string_constructor` / `y_string_destructor` — create/tear down a string
 - `y_string_get_length_in_bytes` — current length (like `strlen`)
@@ -164,18 +191,19 @@ strings:
 Every operation but the constructor and `y_string_as_c_string` takes just
 `y_string_t *` (or `const y_string_t *`) and a `y_stm_transaction_t *` — no
 separate `y_stm_t *`, since a string caches which STM it belongs to. The
-resizable storage — including the versioned "descriptor" slot that keeps a
-string's content handle and length isolated across overlapping transactions
-— lives in the underlying `y_blob`, so even `y_string_get_length_in_bytes`
+string's descriptor is a fixed `y_blob`, so which content slot is current
+and how long it is stays versioned STM data — keeping it isolated across
+overlapping transactions. That is why even `y_string_get_length_in_bytes`
 takes a transaction, and a `y_string_write`/`y_string_append` that resizes
-the string participates in the same first-committer-wins conflict detection
-as any other write. Like `y_stm`'s own operations, these don't return an
-error code — a failure reports itself through `y_stm_fail_transaction` and
-rolls `transaction` back, checkable via
-`y_stm_is_rolled_back`/`y_stm_get_error`. `y_string` keeps its own
-`Y_STRING_ERROR_*` codes for the validation failures at its public boundary
-(a NULL/length-mismatched argument), so callers never see the `y_blob`
-that backs it.
+the string (allocating a fresh content slot and updating the descriptor)
+participates in the same first-committer-wins conflict detection as any
+other write. The blob itself never resizes; the growing lives in `y_string`.
+Like `y_stm`'s own operations, these don't return an error code — a failure
+reports itself through `y_stm_fail_transaction` and rolls `transaction`
+back, checkable via `y_stm_is_rolled_back`/`y_stm_get_error`. `y_string`
+keeps its own `Y_STRING_ERROR_*` codes for the validation failures at its
+public boundary (a NULL/length-mismatched argument), so callers never see
+the `y_blob` that backs it.
 
 ```c
 #include "y/string/include.h"
