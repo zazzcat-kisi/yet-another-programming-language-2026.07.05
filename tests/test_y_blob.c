@@ -45,16 +45,19 @@ static void test_holds_arbitrary_binary_bytes_including_nuls(void) {
     y_stm_destructor(stm);
 }
 
-static void test_get_length_in_bytes_is_the_fixed_length(void) {
+static void test_get_length_in_bytes_reports_current_length(void) {
     y_stm_t *stm = y_stm_constructor();
 
     y_stm_transaction_t *transaction = y_stm_begin_transaction(stm);
     y_blob_t *blob = y_blob_constructor(stm, transaction, "abcdefg", 7);
 
-    /* Immutable, so it needs no transaction. */
     size_t length_in_bytes = 0;
-    y_blob_get_length_in_bytes(blob, &length_in_bytes);
+    y_blob_get_length_in_bytes(blob, transaction, &length_in_bytes);
     assert(length_in_bytes == 7);
+
+    y_blob_resize(blob, transaction, 3);
+    y_blob_get_length_in_bytes(blob, transaction, &length_in_bytes);
+    assert(length_in_bytes == 3);
 
     y_blob_destructor(blob, transaction);
     assert(y_stm_commit_transaction(stm, transaction));
@@ -87,8 +90,8 @@ static void test_write_with_a_different_length_rolls_back(void) {
     y_blob_t *blob = y_blob_constructor(stm, setup, "fixed", 5);
     assert(y_stm_commit_transaction(stm, setup));
 
-    /* A blob never resizes: writing a different length is a mismatch, not a
-     * grow. */
+    /* Writing never resizes: a differing length is a mismatch, not a grow.
+     * (Growing is y_blob_resize's job.) */
     y_stm_transaction_t *transaction = y_stm_begin_transaction(stm);
     y_blob_write(blob, transaction, "longer!", 7);
     assert(y_stm_is_rolled_back(stm, transaction));
@@ -96,13 +99,107 @@ static void test_write_with_a_different_length_rolls_back(void) {
     assert(error.code == Y_BLOB_ERROR_LENGTH_MISMATCH);
     assert(!y_stm_commit_transaction(stm, transaction));
 
-    /* Unchanged: the failing write committed nothing. */
     y_stm_transaction_t *reader = y_stm_begin_transaction(stm);
     char buffer[5] = {0};
     y_blob_read(blob, reader, buffer, sizeof(buffer));
     assert(memcmp(buffer, "fixed", 5) == 0);
     y_blob_destructor(blob, reader);
     assert(y_stm_commit_transaction(stm, reader));
+
+    y_stm_destructor(stm);
+}
+
+static void test_resize_grows_zero_filling_the_new_bytes(void) {
+    y_stm_t *stm = y_stm_constructor();
+
+    y_stm_transaction_t *transaction = y_stm_begin_transaction(stm);
+    y_blob_t *blob = y_blob_constructor(stm, transaction, "ab", 2);
+
+    y_blob_resize(blob, transaction, 5);
+    size_t length_in_bytes = 0;
+    y_blob_get_length_in_bytes(blob, transaction, &length_in_bytes);
+    assert(length_in_bytes == 5);
+
+    unsigned char buffer[5] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
+    y_blob_read(blob, transaction, buffer, sizeof(buffer));
+    const unsigned char expected[5] = {'a', 'b', 0x00, 0x00, 0x00};
+    assert(memcmp(buffer, expected, sizeof(expected)) == 0);
+    assert(!y_stm_is_rolled_back(stm, transaction));
+
+    y_blob_destructor(blob, transaction);
+    assert(y_stm_commit_transaction(stm, transaction));
+
+    y_stm_destructor(stm);
+}
+
+static void test_resize_shrinks_truncating_content(void) {
+    y_stm_t *stm = y_stm_constructor();
+
+    y_stm_transaction_t *transaction = y_stm_begin_transaction(stm);
+    y_blob_t *blob = y_blob_constructor(stm, transaction, "hello", 5);
+
+    y_blob_resize(blob, transaction, 3);
+    size_t length_in_bytes = 0;
+    y_blob_get_length_in_bytes(blob, transaction, &length_in_bytes);
+    assert(length_in_bytes == 3);
+
+    char buffer[3] = {0};
+    y_blob_read(blob, transaction, buffer, sizeof(buffer));
+    assert(memcmp(buffer, "hel", 3) == 0);
+    assert(!y_stm_is_rolled_back(stm, transaction));
+
+    y_blob_destructor(blob, transaction);
+    assert(y_stm_commit_transaction(stm, transaction));
+
+    y_stm_destructor(stm);
+}
+
+static void test_resize_then_write_replaces_all_content(void) {
+    y_stm_t *stm = y_stm_constructor();
+
+    y_stm_transaction_t *transaction = y_stm_begin_transaction(stm);
+    y_blob_t *blob = y_blob_constructor(stm, transaction, "hi", 2);
+
+    y_blob_resize(blob, transaction, 7);
+    y_blob_write(blob, transaction, "goodbye", 7);
+    char buffer[7] = {0};
+    y_blob_read(blob, transaction, buffer, sizeof(buffer));
+    assert(memcmp(buffer, "goodbye", 7) == 0);
+    assert(!y_stm_is_rolled_back(stm, transaction));
+
+    y_blob_destructor(blob, transaction);
+    assert(y_stm_commit_transaction(stm, transaction));
+
+    y_stm_destructor(stm);
+}
+
+static void test_resize_is_isolated_from_a_concurrent_transaction(void) {
+    y_stm_t *stm = y_stm_constructor();
+
+    y_stm_transaction_t *setup = y_stm_begin_transaction(stm);
+    y_blob_t *blob = y_blob_constructor(stm, setup, "base", 4);
+    assert(y_stm_commit_transaction(stm, setup));
+
+    /* `concurrent` snapshots before `resizer` commits a length change, so it
+     * must keep seeing the original 4-byte content afterward. */
+    y_stm_transaction_t *concurrent = y_stm_begin_transaction(stm);
+
+    y_stm_transaction_t *resizer = y_stm_begin_transaction(stm);
+    y_blob_resize(blob, resizer, 20);
+    assert(y_stm_commit_transaction(stm, resizer));
+
+    size_t length_in_bytes = 0;
+    y_blob_get_length_in_bytes(blob, concurrent, &length_in_bytes);
+    assert(length_in_bytes == 4);
+    char buffer[4] = {0};
+    y_blob_read(blob, concurrent, buffer, sizeof(buffer));
+    assert(memcmp(buffer, "base", 4) == 0);
+    assert(!y_stm_is_rolled_back(stm, concurrent));
+    y_stm_rollback_transaction(stm, concurrent);
+
+    y_stm_transaction_t *cleanup = y_stm_begin_transaction(stm);
+    y_blob_destructor(blob, cleanup);
+    assert(y_stm_commit_transaction(stm, cleanup));
 
     y_stm_destructor(stm);
 }
@@ -210,12 +307,17 @@ static void test_operations_on_a_null_transaction_are_safe_no_ops(void) {
     assert(buffer[0] == '?');
 
     y_blob_write(blob, NULL, "y", 1);
+    y_blob_resize(blob, NULL, 4);
 
-    /* get_length needs no transaction at all and always reports the fixed
-     * length. */
     size_t length_in_bytes = 999;
-    y_blob_get_length_in_bytes(blob, &length_in_bytes);
+    y_blob_get_length_in_bytes(blob, NULL, &length_in_bytes);
+    assert(length_in_bytes == 999);
+
+    /* And the blob really is untouched: still its original single byte. */
+    y_stm_transaction_t *reader = y_stm_begin_transaction(stm);
+    y_blob_get_length_in_bytes(blob, reader, &length_in_bytes);
     assert(length_in_bytes == 1);
+    assert(y_stm_commit_transaction(stm, reader));
 
     y_stm_transaction_t *cleanup = y_stm_begin_transaction(stm);
     y_blob_destructor(blob, cleanup);
@@ -227,9 +329,13 @@ static void test_operations_on_a_null_transaction_are_safe_no_ops(void) {
 int main(void) {
     test_constructor_then_read_round_trips_content();
     test_holds_arbitrary_binary_bytes_including_nuls();
-    test_get_length_in_bytes_is_the_fixed_length();
+    test_get_length_in_bytes_reports_current_length();
     test_write_overwrites_in_place();
     test_write_with_a_different_length_rolls_back();
+    test_resize_grows_zero_filling_the_new_bytes();
+    test_resize_shrinks_truncating_content();
+    test_resize_then_write_replaces_all_content();
+    test_resize_is_isolated_from_a_concurrent_transaction();
     test_write_is_visible_to_a_later_transaction();
     test_concurrent_writers_first_committer_wins();
     test_read_with_wrong_length_rolls_back_the_transaction();
