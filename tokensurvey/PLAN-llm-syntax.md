@@ -242,8 +242,10 @@ generate hypotheses for the axes, plus deliver the construct tables as asked.
 
 ## 10. Risks
 
-- **We design for today's models.** Findings are model-specific and have a shelf life; the
-  learnability metric (RQ3) is the hedge, since it predicts how a *future* model meets a novel form.
+- ~~**We design for today's models.**~~ Retired by `ADR-001-model-as-target.md`: a model is a
+  compilation target, so model-specific findings are parameters rather than a shelf-life problem.
+  The study's output changes accordingly — a knob space and a fitting procedure, not one winning
+  syntax. The expensive risk moves to *core rot* (L0/L1 changes invalidate every profile).
 - **Out-of-distribution penalty is real.** Our language will, at first, underperform Python on the
   same task for the same model — the prior is enormous and we are throwing it away. RQ2/RQ3 exist to
   size that penalty honestly before we commit. If the A−B gap turns out to dominate everything else,
