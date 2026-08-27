@@ -1,5 +1,8 @@
 # Plan — per-construct token cost analysis
 
+> **Superseded in scope by `PLAN-llm-syntax.md`.** The construct inventory and mining method below
+> survive as Phase 1 of that plan, cut to ~20 constructs and 10 donor languages.
+
 **Goal.** For each common language construct, establish what it costs an LLM to read, write and
 edit that construct in each language — and publish one table per construct, with the constructs
 grouped into rough-cost bands.
