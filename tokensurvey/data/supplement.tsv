@@ -1,0 +1,17 @@
+name	kind	repo	sparse	exts	allow_tests
+Bash/Shell	lang	https://github.com/kubernetes/kubernetes	hack|cluster|build	sh	1
+Gleam	lang	https://github.com/lustre-labs/lustre	src	gleam	1
+Objective-C	lang	https://github.com/facebook/facebook-ios-sdk	FBSDKCoreKit	m	0
+R	lang	https://github.com/Rdatatable/data.table	R	R	0
+SQL	lang	https://github.com/citusdata/citus	src/test/regress/sql	sql	1
+Fastify	fw	https://github.com/fastify/fastify	-	js	1
+htmx	fw	https://github.com/bigskysoftware/htmx	-	js,html	1
+jQuery	fw	https://github.com/jquery/jquery-ui	ui	js	0
+Next.js	fw	https://github.com/calcom/cal.com	apps/web|packages/features	ts,tsx	0
+Svelte	fw	https://github.com/immich-app/immich	web/src	svelte	0
+Apex	lang	https://github.com/trailheadapps/apex-recipes	force-app	cls	1
+Cobol	lang	https://github.com/openmainframeproject/cobol-check	src	cbl,cob,CBL	1
+Erlang	lang	https://github.com/rabbitmq/rabbitmq-server	deps/rabbit/src	erl	0
+Lisp	lang	https://github.com/sbcl/sbcl	src/compiler	lisp	0
+Solid.js	fw	https://github.com/solidjs/solid-start	packages	ts,tsx	0
+Vue.js	fw	https://github.com/PanJiaChen/vue-element-admin	src	vue	1
