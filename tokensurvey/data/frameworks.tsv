@@ -1,0 +1,44 @@
+name	kind	repo	sparse	exts	allow_tests	exclude
+Angular	fw	https://github.com/angular/components	src/material	ts	0	
+AngularJS	fw	https://github.com/angular/angular.js	src	js	0	
+ASP.NET CORE	fw	https://github.com/dotnet/aspnetcore	src/Mvc	cs	0	
+Astro	fw	https://github.com/withastro/astro	packages/astro/src	ts	0	
+Blazor	fw	https://github.com/dotnet/aspnetcore	src/Components	razor,cs	0	
+CodeIgniter	fw	https://github.com/codeigniter4/CodeIgniter4	system	php	0	
+Deno	fw	https://github.com/denoland/std	-	ts	0	
+Django	fw	https://github.com/saleor/saleor	saleor	py	0	
+Drupal	fw	https://github.com/drupal/drupal	core/modules	php,module	0	
+Elm	fw	https://github.com/NoRedInk/noredink-ui	src	elm	0	
+Express	fw	https://github.com/parse-community/parse-server	src	js	0	
+FastAPI	fw	https://github.com/Netflix/dispatch	src	py	0	
+Fastify	fw	https://github.com/fastify/fastify	lib	js	1	
+Flask	fw	https://github.com/apache/superset	superset	py	0	
+Flutter	fw	https://github.com/flutter/gallery	lib	dart	0	
+Gatsby	fw	https://github.com/gatsbyjs/gatsby	packages/gatsby/src	js	0	
+htmx	fw	https://github.com/bigskysoftware/htmx	-	html	1	
+jQuery	fw	https://github.com/jquery/jquery	src	js	0	
+Laravel	fw	https://github.com/monicahq/monica	app	php	0	
+NestJS	fw	https://github.com/nestjs/nest	packages	ts	0	
+Next.js	fw	https://github.com/vercel/commerce	-	ts,tsx	0	
+Node.js	fw	https://github.com/nodejs/node	lib	js	0	
+Nuxt.js	fw	https://github.com/nuxt/nuxt	packages/nuxt/src	ts	0	
+NumPy	fw	https://github.com/numpy/numpy	numpy	py	0	
+Pandas	fw	https://github.com/pandas-dev/pandas	pandas/core	py	0	
+Phoenix	fw	https://github.com/plausible/analytics	lib	ex	0	
+Play Framework	fw	https://github.com/playframework/playframework	core	scala	0	
+PyTorch	fw	https://github.com/pytorch/pytorch	torch/nn|torch/optim|torch/utils	py	0	
+Qwik	fw	https://github.com/QwikDev/qwik	packages/qwik/src	ts	0	
+React	fw	https://github.com/excalidraw/excalidraw	packages	tsx	0	
+React Native	fw	https://github.com/facebook/react-native	packages/react-native/Libraries	js	0	
+Remix	fw	https://github.com/remix-run/remix	packages	ts	0	
+Ruby on Rails	fw	https://github.com/discourse/discourse	app	rb	0	
+Scikit-Learn	fw	https://github.com/scikit-learn/scikit-learn	sklearn	py	0	
+Solid.js	fw	https://github.com/solidjs/solid	packages/solid/src	ts	0	
+Spring Boot	fw	https://github.com/macrozheng/mall	-	java	0	
+Strapi	fw	https://github.com/strapi/strapi	packages/core	ts	0	
+Svelte	fw	https://github.com/sveltejs/svelte	sites	svelte	0	
+Symfony	fw	https://github.com/Sylius/Sylius	src	php	0	
+TensorFlow	fw	https://github.com/tensorflow/tensorflow	tensorflow/python/keras|tensorflow/python/ops	py	0	
+Vue.js	fw	https://github.com/youzan/vant	packages	vue	0	
+WordPress	fw	https://github.com/WordPress/WordPress	wp-includes	php	1	(^|/)(id3|phpmailer|sodium_compat|simplepie|requests|random_compat|pomo|certificates|blocks)/
+Yii 2	fw	https://github.com/yiisoft/yii2	framework	php	0	

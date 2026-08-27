@@ -1,0 +1,44 @@
+rank,name,tei,tokens_per_sloc,host_language,vs_host_language,tokens_per_line,chars_per_token,code_chars_per_token,med_tok_file,med_lines_file,session,files,sloc,lines,tok,comment_token_share,cl_ratio,repos
+1,Flutter,128,6.88,Dart,0.86,6.55,5.03,5.03,4705,750.5,4216,10,7783,8544,55988,0.04,0.98,https://github.com/flutter/gallery
+2,Gatsby,128,6.88,JavaScript,0.98,6.99,4.32,4.32,4751,726,4553,10,5933,8059,56324,0.27,0.99,https://github.com/gatsbyjs/gatsby
+3,NestJS,126,7.02,TypeScript,0.92,6.62,4.45,4.46,5297,791.5,4304.5,10,6908,8939,59219,0.18,0.99,https://github.com/nestjs/nest
+4,React,125,7.05,TypeScript,0.93,6.67,4.48,4.45,5527.5,844,4460.5,10,8089,9260,61720,0.08,0.98,https://github.com/excalidraw/excalidraw
+5,Next.js,119,7.44,TypeScript,0.98,7.21,4.21,4.17,11413.5,1507,4867,10,16795,18040,130014,0.04,0.99,https://github.com/calcom/cal.com
+6,Vue.js,116,7.62,TypeScript,1,7.25,3.5,3.49,2151,318.5,4272,10,4422,4651,33724,0,1,https://github.com/PanJiaChen/vue-element-admin
+7,Elm,114,7.74,,,6.54,4.83,4.93,7092,1093.5,4342.5,10,8647,12727,83280,0.2,0.99,https://github.com/NoRedInk/noredink-ui
+8,Django,113,7.81,Python,0.97,7.15,5.1,5.12,17214,2315.5,4833.5,10,21215,25660,183341,0.1,1,https://github.com/saleor/saleor
+9,Deno,113,7.84,TypeScript,1.03,7.62,3.94,3.9,10671.5,1399.5,4645,10,9875,15368,117150,0.34,0.99,https://github.com/denoland/std
+10,Node.js,112,7.85,JavaScript,1.12,7.6,4.1,4.04,23948,3035,5076,10,23538,32361,245832,0.25,1,https://github.com/nodejs/node
+11,ASP.NET CORE,111,7.94,C#,1.05,8.99,4.77,5.28,11620,1594.5,5165.5,10,9123,16400,147465,0.51,0.98,https://github.com/dotnet/aspnetcore
+12,React Native,110,8.01,JavaScript,1.15,8.07,4.11,4.11,7395,971,5573.5,10,5643,10201,82323,0.45,0.98,https://github.com/facebook/react-native
+13,Strapi,107,8.25,TypeScript,1.08,7.29,4.49,4.41,6940.5,1013.5,5000.5,10,9900,13238,96552,0.15,0.99,https://github.com/strapi/strapi
+14,FastAPI,107,8.27,Python,1.02,7.3,4.83,4.81,9735,1288.5,4931.5,10,13957,16657,121594,0.05,0.99,https://github.com/Netflix/dispatch
+15,Fastify,106,8.31,JavaScript,1.19,7.18,3.91,3.88,9891.5,1281.5,4695.5,10,13646,16312,117121,0.03,0.98,https://github.com/fastify/fastify
+16,Flask,105,8.43,Python,1.04,8.05,4.69,4.7,20476,2609.5,5295,10,21070,26988,217361,0.18,0.99,https://github.com/apache/superset
+17,Solid.js,104,8.49,TypeScript,1.11,8.13,3.83,3.76,3870,472,5355,10,5291,6363,51757,0.13,1,https://github.com/solidjs/solid-start
+18,AngularJS,103,8.58,JavaScript,1.23,9.01,4.23,4.22,15277.5,1787.5,5801.5,10,8762,20298,182789,0.59,0.99,https://github.com/angular/angular.js
+19,Express,102,8.61,JavaScript,1.23,9.86,4.33,4.27,15411,1530,5500,10,12795,15773,155560,0.29,0.98,https://github.com/parse-community/parse-server
+20,Ruby on Rails,102,8.65,Ruby,0.91,7.43,4.27,4.22,10585,1438,5033.5,10,12839,16234,120663,0.08,0.99,https://github.com/discourse/discourse
+21,htmx,101,8.72,JavaScript,1.25,7.92,4.01,4.07,42003,5343,5083,10,23083,36035,285472,0.29,0.98,https://github.com/bigskysoftware/htmx
+22,Qwik,100,8.82,TypeScript,1.16,8.33,4.02,3.97,10307,1197.5,5704,10,12344,14824,123544,0.12,0.99,https://github.com/QwikDev/qwik
+23,Remix,99,8.91,TypeScript,1.17,8.18,3.96,3.92,10574.5,1459.5,4905.5,10,14337,18527,151550,0.16,1,https://github.com/remix-run/remix
+24,Blazor,99,8.95,C#,1.18,8.99,4.91,5.09,9933,1159.5,5947,10,7416,11773,105827,0.37,0.98,https://github.com/dotnet/aspnetcore
+25,CodeIgniter,98,8.99,PHP,0.86,6.99,4.25,4.18,11205.5,1522.5,4838.5,10,8734,17779,124285,0.37,0.99,https://github.com/codeigniter4/CodeIgniter4
+26,Angular,98,9,TypeScript,1.18,8.52,4.2,4.02,8302.5,1004.5,5584,10,6584,10041,85566,0.31,0.99,https://github.com/angular/components
+27,Spring Boot,97,9.12,Java,1.02,7.55,4.9,4.96,3067,308,4912,10,7992,9982,75356,0.03,0.97,https://github.com/macrozheng/mall
+28,Astro,97,9.13,TypeScript,1.2,8.96,3.93,3.92,8464,1092.5,5663,10,7764,14244,127602,0.44,1,https://github.com/withastro/astro
+29,Phoenix,96,9.18,Elixir,0.81,7.89,3.9,3.88,5944.5,744,5379,10,7249,8495,67030,0.01,0.99,https://github.com/plausible/analytics
+30,Pandas,96,9.19,Python,1.14,8.05,4.29,4.24,33183,4085,5190.5,10,34171,42487,341920,0.08,0.99,https://github.com/pandas-dev/pandas
+31,Svelte,96,9.22,TypeScript,1.21,8.4,4.36,4.34,5018.5,594,5352.5,10,5101,5681,47730,0.01,0.99,https://github.com/immich-app/immich
+32,Yii 2,95,9.24,PHP,0.88,9.7,4.26,4.19,14624,1598,6839,10,7476,16077,155935,0.56,0.99,https://github.com/yiisoft/yii2
+33,jQuery,95,9.33,JavaScript,1.33,8.3,3.57,3.42,6801.5,920.5,5395,10,7803,10911,90513,0.2,0.99,https://github.com/jquery/jquery-ui
+34,Laravel,95,9.33,PHP,0.89,8.11,4.3,4.33,3216,365.5,5645,10,3440,4882,39571,0.19,1,https://github.com/monicahq/monica
+35,Symfony,90,9.83,PHP,0.94,9.22,4.31,4.42,10509,1159,6457.5,10,8601,12063,111223,0.24,0.99,https://github.com/Sylius/Sylius
+36,Scikit-Learn,87,10.18,Python,1.26,8.65,4.29,4.25,26289.5,3075.5,5613,10,24985,31117,269234,0.05,0.99,https://github.com/scikit-learn/scikit-learn
+37,Drupal,86,10.29,PHP,0.98,9.1,4.14,4.01,16535.5,1867,6750.5,10,9785,19750,179801,0.44,0.99,https://github.com/drupal/drupal
+38,NumPy,85,10.38,Python,1.28,8.74,3.76,3.71,28394.5,3273,5990,10,28869,35750,312315,0.04,0.99,https://github.com/numpy/numpy
+39,PyTorch,84,10.48,Python,1.3,8.94,4.22,4.17,26922,2654.5,6472,10,24887,31544,282119,0.08,0.99,https://github.com/pytorch/pytorch
+40,WordPress,83,10.64,PHP,1.01,8.96,3.62,3.33,31142,3430.5,5860,10,17827,37057,331948,0.43,1,https://github.com/WordPress/WordPress
+41,Nuxt.js,80,10.98,TypeScript,1.44,9.87,4.05,3.97,7727,786.5,6541.5,10,6282,8165,80571,0.14,0.99,https://github.com/nuxt/nuxt
+42,TensorFlow,80,11.09,Python,1.37,9.57,4.21,4.18,31678.5,3283.5,6277.5,10,27053,33738,322814,0.07,0.99,https://github.com/tensorflow/tensorflow
+43,Play Framework,78,11.24,Scala,0.93,9.01,4.03,3.95,7878.5,808.5,5828.5,10,4389,8140,73316,0.33,0.99,https://github.com/playframework/playframework

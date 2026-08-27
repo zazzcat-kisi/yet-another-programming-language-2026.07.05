@@ -1,0 +1,478 @@
+<title>The Token Bill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#F1F4F2; --card:#FBFCFB; --sunk:#E9EEEB;
+  --ink:#111815; --ink-2:#38443E; --muted:#5F6E67; --rule:#D9E1DC;
+  --accent:#0E7C6B; --accent-soft:#0E7C6B1F;
+  --c1:#0E7C6B; --c2:#5F9A63; --c3:#A98C2C; --c4:#B4602A; --c5:#9C3A2E;
+  --shadow:0 1px 2px rgba(16,32,26,.05), 0 8px 24px -18px rgba(16,32,26,.35);
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C1210; --card:#131A18; --sunk:#0F1614;
+    --ink:#E3EAE6; --ink-2:#B8C5BF; --muted:#87968F; --rule:#222E2A;
+    --accent:#4FD1B9; --accent-soft:#4FD1B926;
+    --c1:#4FD1B9; --c2:#9BC97F; --c3:#DFB44C; --c4:#E4865C; --c5:#DE6A5C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -22px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C1210; --card:#131A18; --sunk:#0F1614;
+  --ink:#E3EAE6; --ink-2:#B8C5BF; --muted:#87968F; --rule:#222E2A;
+  --accent:#4FD1B9; --accent-soft:#4FD1B926;
+  --c1:#4FD1B9; --c2:#9BC97F; --c3:#DFB44C; --c4:#E4865C; --c5:#DE6A5C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -22px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 24px 96px}
+.prose{max-width:66ch}
+h1,h2,h3{font-family:var(--display); font-weight:600; text-wrap:balance; margin:0}
+h1{font-size:clamp(2.6rem,6.5vw,4.4rem); line-height:.98; letter-spacing:-.02em}
+h2{font-size:clamp(1.4rem,2.6vw,1.85rem); line-height:1.15; letter-spacing:-.01em}
+h3{font-size:1.05rem; letter-spacing:-.005em}
+p{margin:0}
+a{color:var(--accent); text-underline-offset:3px}
+.eyebrow{
+  font-family:var(--mono); font-size:.72rem; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--muted);
+}
+/* ---------- header ---------- */
+header{padding:72px 0 0}
+.deck{margin-top:22px; font-size:1.15rem; color:var(--ink-2); max-width:60ch}
+.rail{
+  display:flex; flex-wrap:wrap; gap:0; margin-top:44px;
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+}
+.rail div{
+  flex:1 1 150px; padding:16px 20px 15px; border-right:1px solid var(--rule);
+}
+.rail div:last-child{border-right:0}
+.rail b{
+  display:block; font-family:var(--mono); font-size:1.5rem; font-weight:500;
+  letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.rail span{display:block; margin-top:4px; font-size:.78rem; color:var(--muted)}
+/* ---------- sections ---------- */
+section{margin-top:64px}
+.sec-head{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:18px}
+.sec-head p{color:var(--muted); font-size:.9rem}
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
+.card{
+  background:var(--card); border:1px solid var(--rule); border-radius:4px;
+  padding:22px 24px; box-shadow:var(--shadow);
+}
+.card h3{margin-bottom:8px}
+.card p{color:var(--ink-2); font-size:.93rem}
+.card .tag{
+  font-family:var(--mono); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); display:block; margin-bottom:10px;
+}
+/* ---------- finding callout ---------- */
+.callout{
+  background:var(--card); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  border-radius:4px; padding:26px 28px; display:grid; gap:24px;
+  grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) minmax(260px,1.4fr); align-items:center;
+}
+.rho{font-family:var(--mono); font-variant-numeric:tabular-nums}
+.rho b{display:block; font-size:2.3rem; font-weight:500; letter-spacing:-.03em; line-height:1}
+.rho span{display:block; font-size:.82rem; color:var(--muted); margin-top:6px; font-family:var(--body)}
+.callout p{font-size:.95rem; color:var(--ink-2)}
+/* ---------- tables ---------- */
+.toolbar{display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap}
+.toolbar input{
+  font-family:var(--body); font-size:.88rem; padding:7px 11px; width:220px;
+  background:var(--card); color:var(--ink); border:1px solid var(--rule); border-radius:3px;
+}
+.toolbar input:focus{outline:2px solid var(--accent); outline-offset:1px}
+.hint{font-size:.8rem; color:var(--muted)}
+.tablebox{overflow-x:auto; border:1px solid var(--rule); border-radius:4px; background:var(--card)}
+table{border-collapse:collapse; width:100%; font-size:.88rem}
+thead th{
+  position:sticky; top:0; background:var(--sunk); z-index:1;
+  font-family:var(--mono); font-weight:500; font-size:.7rem; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--muted); text-align:right;
+  padding:11px 12px; border-bottom:1px solid var(--rule); white-space:nowrap; cursor:pointer;
+  user-select:none;
+}
+thead th:first-child, thead th.l{text-align:left}
+thead th:hover{color:var(--ink)}
+thead th[aria-sort]{color:var(--ink)}
+thead th[aria-sort]::after{content:"↓"; margin-left:5px; font-size:.85em}
+thead th[aria-sort="ascending"]::after{content:"↑"}
+tbody td{
+  padding:9px 12px; text-align:right; border-bottom:1px solid var(--rule);
+  font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--accent-soft)}
+td.name{
+  text-align:left; font-family:var(--body); font-weight:500; white-space:nowrap;
+}
+td.name small{
+  display:block; font-family:var(--mono); font-size:.68rem; color:var(--muted);
+  font-weight:400; max-width:230px; overflow:hidden; text-overflow:ellipsis;
+}
+td.rk{color:var(--muted); width:36px}
+td.dim{color:var(--muted)}
+.bar{display:flex; align-items:center; gap:9px; justify-content:flex-end}
+.bar i{
+  display:block; height:7px; border-radius:1px; background:var(--c3); min-width:2px;
+}
+.bar em{font-style:normal; width:52px; text-align:right}
+.q1 i{background:var(--c1)} .q2 i{background:var(--c2)} .q3 i{background:var(--c3)}
+.q4 i{background:var(--c4)} .q5 i{background:var(--c5)}
+.unranked td{opacity:.62}
+.legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:.75rem; color:var(--muted)}
+.legend span{display:flex; align-items:center; gap:6px}
+.legend i{width:14px; height:7px; border-radius:1px; display:block}
+/* ---------- findings ---------- */
+.findings{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:0}
+.finding{padding:22px 26px 22px 0; border-top:1px solid var(--rule)}
+.finding h3{margin-bottom:7px}
+.finding p{font-size:.93rem; color:var(--ink-2)}
+.finding .num{
+  font-family:var(--mono); font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  display:block; margin-bottom:9px;
+}
+details{border-top:1px solid var(--rule); padding:16px 0}
+details summary{
+  cursor:pointer; font-family:var(--display); font-size:1.05rem; font-weight:600;
+  list-style:none; display:flex; justify-content:space-between; align-items:center;
+}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+"; font-family:var(--mono); color:var(--muted)}
+details[open] summary::after{content:"–"}
+details ul{margin:14px 0 4px; padding-left:20px; max-width:72ch}
+details li{margin-bottom:9px; font-size:.92rem; color:var(--ink-2)}
+details li code, code{
+  font-family:var(--mono); font-size:.85em; background:var(--sunk);
+  padding:1px 5px; border-radius:2px;
+}
+footer{
+  margin-top:64px; padding-top:22px; border-top:1px solid var(--rule);
+  font-size:.82rem; color:var(--muted); display:flex; justify-content:space-between;
+  gap:16px; flex-wrap:wrap;
+}
+@media (max-width:760px){
+  .callout{grid-template-columns:1fr}
+  header{padding-top:48px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Stack Overflow 2025 · Technology · 918 files · 92 repositories</p>
+  <h1>The&nbsp;Token&nbsp;Bill</h1>
+  <p class="deck">What it actually costs an LLM coding agent to work in each language and
+  framework developers said they use — measured on real source files, then normalised so
+  the comparison is same-work-for-same-work.</p>
+  <div class="rail">
+    <div><b>50</b><span>languages sampled</span></div>
+    <div><b>43</b><span>frameworks sampled</span></div>
+    <div><b>16.3M</b><span>tokens measured</span></div>
+    <div><b>140</b><span>equivalent tasks</span></div>
+    <div><b>5,368</b><span>task implementations</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><h2>How the cost was measured</h2>
+  <p>Two tracks, because one of them alone lies to you.</p></div>
+  <div class="cards">
+    <div class="card">
+      <span class="tag">Track A — real code</span>
+      <h3>The same edit session, on every file</h3>
+      <p>Ten large files per entry (median ≈ 2,000 lines) from a flagship open-source project.
+      Each is priced through one identical unit of agent work on a fixed 300-line slice:
+      one full read, two 120-line focused re-reads, a 60-line search digest, two 12-line
+      diff hunks, and a 40-line span of new code.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Track B — same work</span>
+      <h3>140 tasks, implemented in all of them</h3>
+      <p>Track A can't tell you whether a language spent more tokens <em>doing more</em>.
+      So every language is also measured on 140 Rosetta Code tasks present in at least 36 of
+      48 languages, each cost expressed as a ratio to that task's cross-language median and
+      combined with a geometric mean. That index is what the ranking uses.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Tokenizer</span>
+      <h3>o200k_base, and it barely matters</h3>
+      <p>Claude's tokenizer isn't public, so the GPT-4o BPE stands in. Re-running the whole
+      survey on <code>cl100k_base</code> reproduces the language ranking at ρ&nbsp;=&nbsp;0.999,
+      and how tokenizer-friendly a language is predicts nothing about where it lands.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="callout">
+    <div class="rho"><b>+0.94</b><span>tokens per task vs. lines per task</span></div>
+    <div class="rho"><b>−0.18</b><span>tokens per task vs. tokens per code line</span></div>
+    <p><strong>Per-line density is the wrong metric.</strong> Languages with cheap lines need
+    more of them, so the number everyone reaches for is slightly <em>anti</em>-correlated with
+    real cost. What predicts an agent's token bill is how few lines a language needs —
+    expressiveness, not punctuation.</p>
+  </div>
+</section>
+
+<section id="languages">
+  <div class="sec-head"><h2>Languages</h2>
+  <p>Ranked by tokens to express the same functionality. Click any column to re-sort.</p></div>
+  <div class="toolbar">
+    <input id="fl" type="search" placeholder="Filter languages…" aria-label="Filter languages">
+    <span class="hint" id="cl"></span>
+  </div>
+  <div class="tablebox">
+    <table id="tl">
+      <thead><tr>
+        <th class="l" data-k="rank">#</th>
+        <th class="l" data-k="name">Language</th>
+        <th data-k="tpt">Tokens per equivalent task</th>
+        <th data-k="tei">Index</th>
+        <th data-k="lpt">Lines / task</th>
+        <th data-k="tps">Tokens / code line</th>
+        <th data-k="cpt">Chars / token</th>
+        <th data-k="ses">Edit session</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--c1)"></i>cheapest quintile</span>
+    <span><i style="background:var(--c3)"></i>median</span>
+    <span><i style="background:var(--c5)"></i>most expensive</span>
+    <span>Index: 100 = median language, higher is cheaper. HTML/CSS and Solidity have no
+    equivalent-task corpus and are unranked.</span>
+  </div>
+</section>
+
+<section id="frameworks">
+  <div class="sec-head"><h2>Frameworks</h2>
+  <p>Ranked by token density of real application code written with them.</p></div>
+  <div class="toolbar">
+    <input id="ff" type="search" placeholder="Filter frameworks…" aria-label="Filter frameworks">
+    <span class="hint" id="cf"></span>
+  </div>
+  <div class="tablebox">
+    <table id="tf">
+      <thead><tr>
+        <th class="l" data-k="rank">#</th>
+        <th class="l" data-k="name">Framework</th>
+        <th data-k="tps">Tokens per code line</th>
+        <th data-k="tei">Index</th>
+        <th class="l" data-k="host">Host language</th>
+        <th data-k="vs">vs. host</th>
+        <th data-k="mtf">Median tokens / file</th>
+        <th data-k="ses">Edit session</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="legend">
+    <span>This table is <strong>not</strong> functionality-normalised — no equivalent-app corpus
+    exists across frameworks. It measures what a line of each stack costs to read, not how much
+    code the framework saves you writing. The <em>vs. host</em> column is the framework's own
+    contribution over its language's baseline.</span>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>What the numbers say</h2></div>
+  <div class="findings">
+    <div class="finding">
+      <span class="num">EXPRESSIVENESS</span>
+      <h3>Fewer lines, not friendlier syntax</h3>
+      <p>Go's lines are unremarkable — 9.5 tokens each. It costs 1.48× Python for the same work
+      because it needs 31.8 lines where Python needs 16.6. Assembly and Python sit at opposite
+      ends of tokenizer friendliness and that fact predicts neither one's rank.</p>
+    </div>
+    <div class="finding">
+      <span class="num">MAINSTREAM SPREAD</span>
+      <h3>About 1.7× between the languages most people use</h3>
+      <p>For identical functionality: Ruby 0.77×, Python 1.00×, TypeScript 1.17×, Rust 1.21×,
+      Java 1.30×, C# 1.33×, Go 1.48×, C++ 1.55×, C 1.69×. Real, but smaller than the gap
+      between a well-scoped prompt and a lazy one.</p>
+    </div>
+    <div class="finding">
+      <span class="num">COMMENTS</span>
+      <h3>A quarter of the bill is prose</h3>
+      <p>Across the language corpus, a median 23% of a file's tokens sit in comment lines —
+      larger than the gap between most adjacent ranks, and the one lever a team controls
+      without changing language.</p>
+    </div>
+    <div class="finding">
+      <span class="num">FRAMEWORKS</span>
+      <h3>Framework choice is mostly language choice</h3>
+      <p>The whole framework table spans 1.6×, against 2.1× across languages. Every TypeScript
+      framework lands in 7.0–11.0 tokens per code line, every PHP one in 9.0–10.6. A framework's
+      own contribution rarely exceeds ±25%.</p>
+    </div>
+    <div class="finding">
+      <span class="num">LEGACY</span>
+      <h3>Old stacks cost twice</h3>
+      <p>COBOL (2.5×) and Assembly (3.8×) are the most expensive per unit of functionality
+      <em>and</em> produce the largest files, so an agent burns its context faster and has less
+      room left to reason in. VBA, Visual Basic .NET and Delphi cluster around 1.38×.</p>
+    </div>
+    <div class="finding">
+      <span class="num">PRACTICAL</span>
+      <h3>What to do with this</h3>
+      <p>Not "rewrite in Ruby". Use it when the choice is already close, when budgeting agent
+      runs against a large codebase, and as a reason to be ruthless about dead comments and
+      generated files sitting in the context window.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Before you quote these numbers</h2></div>
+  <details>
+    <summary>Sampling limits</summary>
+    <ul>
+      <li><strong>One repository per entry</strong> (two for a few). House style — line width,
+      comment culture, formatter settings — moves the Track A columns by more than the gap
+      between neighbouring ranks. The Rosetta axis, which the ranking uses, doesn't have this
+      problem.</li>
+      <li><strong>Rosetta Code is not production code.</strong> Tasks are small and algorithmic;
+      the corpus under-represents the glue, error handling and I/O that dominate real work. It
+      is used only for <em>relative</em> cost between languages on identical work.</li>
+      <li><strong>Small samples:</strong> COBOL, R and SQL yielded only 6 qualifying large files
+      each; COBOL has no edit-session figure because none of its files reached 300 lines.</li>
+      <li><strong>MicroPython shares Python's task corpus</strong> — they are the same language on
+      that axis. Their real-code rows are genuinely different corpora.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>What was excluded, and why</summary>
+    <ul>
+      <li><strong>Data files</strong>, by a uniform mechanical rule: dropped if more than 60% of
+      lines are under 35% letters, or more than 10% of characters are non-ASCII, or (non-markup
+      only) the file exceeds 20 tokens per code line. This removes locale tables, coefficient
+      blocks, generated arity boilerplate and inline SVG — which otherwise distort per-line
+      figures by 2–5×.</li>
+      <li><strong>Bundled third-party libraries</strong> where a project vendors them into its own
+      tree under a non-obvious path. Six of WordPress's ten largest files were copies of getID3,
+      PHPMailer and sodium_compat.</li>
+      <li><strong>Tests, fixtures, minified and generated output</strong>, except where a project's
+      only substantial code lives there.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Roster provenance</summary>
+    <ul>
+      <li>The Stack Overflow survey page is blocked by this sandbox's network egress policy, so
+      the roster of languages and frameworks was reconstructed from the survey's published
+      technology categories. A handful of low-share entries are absent.</li>
+      <li>Percentages and shares from the survey are not used anywhere in the measurement — the
+      survey only decides <em>which</em> languages and frameworks are on the list.</li>
+    </ul>
+  </details>
+</section>
+
+<footer>
+  <span>Measured with <code>gpt-tokenizer</code> · o200k_base · cross-checked on cl100k_base</span>
+  <span>Scripts and raw per-file measurements ship alongside this page</span>
+</footer>
+</div>
+
+<script>
+/*__LANGS__*/
+/*__FWS__*/
+const fmt = n => n==null ? '–' : (typeof n==='number' ? n.toLocaleString('en-US') : n);
+
+function quint(v, sorted){
+  const i = sorted.indexOf(v);
+  return 'q' + Math.min(5, Math.floor(i / (sorted.length/5)) + 1);
+}
+function build(tbodyId, rows, cols, cfg){
+  const tb = document.querySelector(tbodyId + ' tbody');
+  tb.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (cfg.unranked && cfg.unranked(r)) tr.className = 'unranked';
+    tr.innerHTML = cols(r);
+    tb.appendChild(tr);
+  });
+}
+// ---- languages ----
+const tptSorted = LANGS.filter(r=>r.tpt).map(r=>r.tpt).sort((a,b)=>a-b);
+const maxTpt = Math.max(...tptSorted);
+function langRow(r){
+  const bar = r.tpt
+    ? `<div class="bar ${quint(r.tpt,tptSorted)}"><i style="width:${Math.round(r.tpt/maxTpt*120)}px"></i><em>${r.tpt.toFixed(1)}</em></div>`
+    : '<div class="bar"><em>–</em></div>';
+  return `<td class="rk">${r.rank||'–'}</td>
+  <td class="name">${r.name}<small title="${r.repo}">${r.repo.replace(/https:\/\/github.com\//g,'').replace(/ \+ /g,' + ')}</small></td>
+  <td>${bar}</td>
+  <td>${r.tei??'–'}</td><td class="dim">${r.lpt??'–'}</td>
+  <td class="dim">${r.tps}</td><td class="dim">${r.cpt}</td><td>${fmt(r.ses)}</td>`;
+}
+// ---- frameworks ----
+const tpsSorted = FWS.map(r=>r.tps).sort((a,b)=>a-b);
+const maxTps = Math.max(...tpsSorted);
+function fwRow(r){
+  const bar = `<div class="bar ${quint(r.tps,tpsSorted)}"><i style="width:${Math.round(r.tps/maxTps*110)}px"></i><em>${r.tps.toFixed(2)}</em></div>`;
+  return `<td class="rk">${r.rank}</td>
+  <td class="name">${r.name}<small title="${r.repo}">${r.repo.replace(/https:\/\/github.com\//g,'')}</small></td>
+  <td>${bar}</td><td>${r.tei}</td>
+  <td class="name dim" style="font-family:var(--body)">${r.host||'–'}</td>
+  <td class="dim">${r.vs? r.vs.toFixed(2)+'×' : '–'}</td>
+  <td class="dim">${fmt(r.mtf)}</td><td>${fmt(r.ses)}</td>`;
+}
+const state = {
+  tl:{data:LANGS, row:langRow, key:'rank', dir:1, filter:'', count:'#cl', noun:'languages',
+      unranked:r=>!r.rank},
+  tf:{data:FWS, row:fwRow, key:'rank', dir:1, filter:'', count:'#cf', noun:'frameworks'}
+};
+function render(id){
+  const s = state[id];
+  let rows = s.data.filter(r =>
+    !s.filter || (r.name + ' ' + (r.host||'') + ' ' + r.repo).toLowerCase().includes(s.filter));
+  rows = rows.slice().sort((a,b) => {
+    let x = a[s.key], y = b[s.key];
+    if (x == null) return 1; if (y == null) return -1;
+    if (typeof x === 'string') return s.dir * x.localeCompare(y);
+    return s.dir * (x - y);
+  });
+  build('#'+id, rows, s.row, s);
+  document.querySelector(s.count).textContent =
+    rows.length + ' of ' + s.data.length + ' ' + s.noun;
+  document.querySelectorAll('#'+id+' thead th').forEach(th => {
+    if (th.dataset.k === s.key) th.setAttribute('aria-sort', s.dir===1?'ascending':'descending');
+    else th.removeAttribute('aria-sort');
+  });
+}
+['tl','tf'].forEach(id => {
+  document.querySelectorAll('#'+id+' thead th').forEach(th => {
+    th.tabIndex = 0;
+    const go = () => {
+      const s = state[id], k = th.dataset.k;
+      if (s.key === k) s.dir *= -1;
+      else { s.key = k; s.dir = (k==='rank'||k==='name'||k==='host') ? 1 : -1; }
+      render(id);
+    };
+    th.addEventListener('click', go);
+    th.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); }});
+  });
+  render(id);
+});
+document.getElementById('fl').addEventListener('input', e => {
+  state.tl.filter = e.target.value.toLowerCase().trim(); render('tl');
+});
+document.getElementById('ff').addEventListener('input', e => {
+  state.tf.filter = e.target.value.toLowerCase().trim(); render('tf');
+});
+</script>
